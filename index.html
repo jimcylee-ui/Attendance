@@ -33,6 +33,7 @@ button.b:focus-visible,select:focus-visible,input:focus-visible{outline:2px soli
 .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sum div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
 .sum b{display:block;font-size:20px}
 textarea{width:100%;height:130px;font:13px monospace;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px}
+.f{display:grid;gap:8px;margin-top:10px}.f label{font-size:14px;color:var(--mute);display:grid;gap:3px}.f input,.f textarea{width:100%}.f textarea{height:70px;font:inherit;padding:8px 12px}.f .ck{display:flex;gap:8px;align-items:flex-start}.f .ck input{width:auto;margin-top:4px}
 .demo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--mute);border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-bottom:12px}
 </style></head><body><main>
 <div class="top"><h1 id="cname">Class Attendance</h1>
@@ -42,10 +43,10 @@ textarea{width:100%;height:130px;font:13px monospace;background:var(--card);colo
 <button class="b" onclick="resetAll()">Reset data</button></div>
 <div id="app"></div></main>
 <script>
-const KEY='attendance-v1';
-const seed=()=>({role:'teacher',sid:'s1',date:'',bypass:true,
-cls:{id:'math-sat',name:'Saturday Math',fee:50,pts:10,days:[1,2,3,4,5,6,7],start:'09:00'},
-students:[['s1','Aisyah'],['s2','Wei Jie'],['s3','Priya'],['s4','Daniel'],['s5','Nurul']].map(([id,name])=>({id,name})),
+const KEY='attendance-v2';
+const seed=()=>({role:'teacher',sid:'',date:'',bypass:true,
+cls:{id:'math-sat',name:'Saturday Math',fee:20,pts:10,days:[1,2,3,4,5,6,7],start:'09:00'},
+students:[['s1','Aisyah','0121000001'],['s2','Wei Jie','0121000002'],['s3','Priya','0121000003'],['s4','Daniel','0121000004'],['s5','Nurul','0121000005']].map(([id,name,phone])=>({id,name,phone})),
 checkins:[],pays:[]});
 let S;try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -70,6 +71,48 @@ function checkIn(sid,manual){
   return {ok:1,t:'Checked in for '+d+'. +'+c.pts+' points!'};
 }
 function scan(){flash=checkIn(S.sid);render()}
+let pending=null;
+const normPh=p=>{p=(p||'').replace(/\D/g,'');if(p.startsWith('60'))p='0'+p.slice(2);return p};
+function login(){
+  const p=normPh(document.getElementById('ph').value);
+  if(p.length<9)return alert('Enter a valid phone number.');
+  const s=S.students.find(x=>x.phone===p);
+  if(s){S.sid=s.id;flash=null;save();render()}else{pending=p;render()}
+}
+const esc=t=>String(t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function regForm(){
+  const f=(id,l,t,v,req)=>`<label>${l}${req===0?' (optional)':''}<input id="${id}" type="${t||'text'}" value="${v||''}"></label>`;
+  return `<div class="msg no">${pending} is not registered yet. Please fill in your details once.</div><div class="f">`
+  +f('re','Email','email')+f('rf','First name')+f('rl','Last name')+f('rp','Contact number','tel',pending)+f('ra','Current address')
+  +f('rn','Emergency contact name')+f('rc','Emergency contact number','tel')
+  +`<label>Health declaration (optional)<textarea id="rh" placeholder="Allergies, asthma, injuries, medication, or anything the teacher should know"></textarea></label>`
+  +`<label class="ck"><input id="rk" type="checkbox"><span>I agree that my details, including health information, may be used by the teacher for this class and for emergencies.</span></label>`
+  +`<button class="b p" onclick="join()">Join and check in</button><button class="b" onclick="pending=null;render()">Use a different number</button></div>`;
+}
+function join(){
+  const g=i=>document.getElementById(i).value.trim();
+  const d={first:g('rf'),last:g('rl'),email:g('re'),phone:normPh(g('rp')),address:g('ra'),ecName:g('rn'),ecPhone:normPh(g('rc')),health:g('rh')};
+  if(!d.first||!d.last||!d.address||!d.ecName)return alert('Please fill in all required fields.');
+  if(!/^\S+@\S+\.\S+$/.test(d.email))return alert('Enter a valid email address.');
+  if(d.phone.length<9||d.ecPhone.length<9)return alert('Enter valid phone numbers.');
+  if(S.students.some(s=>s.phone===d.phone))return alert('This contact number is already registered.');
+  if(!document.getElementById('rk').checked)return alert('Please tick the consent box.');
+  const id='s'+Date.now();
+  S.students.push({id,name:esc(d.first+' '+d.last),...d});S.sid=id;pending=null;
+  flash=checkIn(id);save();render()
+}
+function info(s){
+  if(!s.email)return '';
+  return `<details style="margin-top:8px"><summary class="mute" style="cursor:pointer">Student details</summary><div class="mute" style="margin-top:6px;line-height:1.7">Email: ${esc(s.email)}<br>Address: ${esc(s.address)}<br>Emergency: ${esc(s.ecName)}, ${esc(s.ecPhone)}<br>Health: ${s.health?'<b style="color:var(--warn)">'+esc(s.health)+'</b>':'None declared'}</div></details>`;
+}
+function logout(){S.sid='';flash=null;pending=null;save();render()}
+function loginView(){
+  let h=`<div class="card"><b>${S.cls.name}</b><div class="mute">Enter your phone number to check in. New here? We will ask for your name once.</div>`;
+  if(!pending)h+=`<div class="pay"><input id="ph" type="tel" inputmode="tel" placeholder="e.g. 0123456789" style="flex:1;width:auto" aria-label="Phone number"><button class="b p" onclick="login()">Continue</button></div>`;
+  else h+=regForm();
+  h+=`</div><div class="mute">Demo numbers: ${S.students.filter(s=>s.phone).slice(0,5).map(s=>s.name+' '+s.phone).join(', ')}</div>`;
+  return h
+}
 function mark(sid){checkIn(sid,true);render()}
 function undo(sid){const d=D();S.checkins=S.checkins.filter(x=>!(x.date===d&&x.sid===sid));S.pays=S.pays.filter(p=>!(p.date===d&&p.sid===sid));save();render()}
 function pay(sid){
@@ -95,22 +138,23 @@ function teacher(){
   <h2>Attendance</h2>`;
   S.students.forEach(s=>{
     const ci=S.checkins.find(x=>x.date===d&&x.sid===s.id),ps=dp.filter(p=>p.sid===s.id);
-    h+=`<div class="card"><div class="row"><b>${s.name}</b>`;
+    h+=`<div class="card"><div class="row"><b>${s.name} <span class="mute">${s.phone||''}</span></b>`;
     if(!ci)h+=`<span><span class="tag w">Absent</span> <button class="b" onclick="mark('${s.id}')">Mark present</button></span></div>`;
     else{
       h+=`<span><span class="tag">${ci.manual?'Present (manual)':'Checked in'}</span> <button class="b" onclick="undo('${s.id}')">Undo</button></span></div>`;
       if(ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} · ${ps.map(p=>({cash:'Cash',bank_in:'Bank-in',tng:'TNG'})[p.method]).join(', ')}</span><button class="b" onclick="unpay('${s.id}')">Remove payment</button></div>`;
       else h+=`<div class="pay"><input id="a${s.id}" type="number" min="0" step="0.5" value="${c.fee}" aria-label="Amount"><select id="m${s.id}" aria-label="Payment method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="b p" onclick="pay('${s.id}')">Record payment</button></div>`;
     }
-    h+='</div>';
+    h+=info(s)+'</div>';
   });
   h+=`<button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
   return h;
 }
 function student(){
+  if(!S.students.some(s=>s.id===S.sid))return loginView();
   const d=D(),me=S.sid,mine=S.checkins.filter(c=>c.sid===me).sort((a,b)=>b.date.localeCompare(a.date));
   const board=S.students.map(s=>({n:s.name,p:pts(s.id),id:s.id})).sort((a,b)=>b.p-a.p);
-  let h=`<div class="card"><label class="mute">Logged in as <select onchange="S.sid=this.value;flash=null;save();render()">${S.students.map(s=>`<option value="${s.id}" ${s.id===me?'selected':''}>${s.name}</option>`).join('')}</select></label></div>
+  let h=`<div class="card row"><span class="mute">Logged in as <b>${nm(me)}</b></span><button class="b" onclick="logout()">Switch student</button></div>
   <div class="card"><div class="mute">Your points</div><div class="big">${pts(me)}</div></div>
   <div class="card"><b>${S.cls.name}</b><div class="mute">Scan the class QR with your phone camera. Here, tap the button to simulate it.</div>
   <button class="b p" style="margin-top:10px;width:100%;padding:14px" onclick="scan()">Scan class QR</button>
