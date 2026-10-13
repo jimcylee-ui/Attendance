@@ -190,6 +190,14 @@ function setPhoto(i){const f=i.files[0];if(f)shrink(f,p=>{S.students.find(s=>s.i
 const av=(s,z)=>s.photo?`<img src="${s.photo}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover">`:`<span style="width:${z}px;height:${z}px;border-radius:50%;background:var(--accbg);color:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none">${(s.name||'?')[0]}</span>`;
 const MLBL={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free reward'};
 const hasSub=(sid,d)=>S.subs.some(x=>x.sid===sid&&x.month===d.slice(0,7));
+let lbOpen=false,lbTimer;
+function lbStart(){lbCancel();lbTimer=setTimeout(lbShow,500)}
+function lbCancel(){clearTimeout(lbTimer)}
+function lbShow(){lbOpen=true;render()}
+function lbView(board,me){
+  const mi=board.findIndex(b=>b.id===me),row=(b,i)=>`<div class="row" style="padding:6px 0;${b.id===me?'color:var(--acc);font-weight:700':''}"><span>${i+1}. ${b.n}</span><span>${b.p} pts</span></div>`;
+  return `<div role="dialog" aria-modal="true" aria-label="Leaderboard" onclick="lbOpen=false;render()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10"><div class="card" style="width:100%;max-width:360px;margin:0" onclick="event.stopPropagation()"><div class="row" style="margin-bottom:6px"><b>Leaderboard</b><button class="b" onclick="lbOpen=false;render()">Close</button></div>${board.slice(0,10).map(row).join('')}${mi>=10?'<div class="mute">...</div>'+row(board[mi],mi):''}</div></div>`;
+}
 function collect(f){
   const t={cash:0,bank_in:0,tng:0},c={fees:0,plans:0,drinks:0};
   S.pays.filter(p=>f(p.date)&&t[p.method]!==undefined).forEach(p=>{t[p.method]+=p.amt;c.fees+=p.amt});
@@ -297,12 +305,12 @@ function student(){
   const d=D(),me=S.sid,mine=S.checkins.filter(c=>c.sid===me).sort((a,b)=>b.date.localeCompare(a.date));
   const board=S.students.map(s=>({n:s.name,p:earned(s.id),id:s.id})).sort((a,b)=>b.p-a.p);
   let h=`<div class="card row"><span style="display:flex;align-items:center;gap:10px">${av(S.students.find(s=>s.id===me),44)}<span class="mute">Logged in as <b>${nm(me)}</b><br><label style="cursor:pointer;color:var(--acc);font-weight:600">${S.students.find(s=>s.id===me).photo?'Change photo':'Add photo'}<input type="file" accept="image/*" hidden onchange="setPhoto(this)"></label></span></span><button class="b" onclick="logout()">Switch student</button></div>
-  <div class="card row" style="align-items:stretch;flex-wrap:nowrap"><div><div class="mute">Your points</div><div class="big">${pts(me)}</div></div>${payBar(me,d)}</div>
+  <div class="card row" style="align-items:stretch;flex-wrap:nowrap"><div id="pa" role="button" tabindex="0" aria-label="Your points. Press and hold to see the leaderboard" style="user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer" onpointerdown="lbStart()" onpointerup="lbCancel()" onpointerleave="lbCancel()" onpointercancel="lbCancel()" oncontextmenu="return false" onkeydown="if(event.key==='Enter')lbShow()"><div class="mute">Your points</div><div class="big">${pts(me)}</div><div class="mute" style="font-size:12px;margin-top:4px">Hold to see leaderboard</div></div>${payBar(me,d)}</div>
   <div class="card"><b>${S.cls.name}</b><div class="mute">After scanning the class QR with your phone camera, tap Check in to record your attendance.</div>
   <button class="b p" style="margin-top:10px;width:100%;padding:14px" onclick="scan()">Check in</button>
   ${flash?`<div class="msg ${flash.ok?'ok':'no'}">${flash.t}</div>`:''}</div>
-  ${rewardsView(me)}${shopView(me)}<h2>Leaderboard</h2>`;
-  board.forEach((b,i)=>h+=`<div class="card row" ${b.id===me?'style="border-color:var(--acc)"':''}><span>${i+1}. ${b.n}</span><b>${b.p} pts</b></div>`);
+  ${rewardsView(me)}${shopView(me)}`;
+  if(lbOpen)h+=lbView(board,me);
   h+='<h2>My attendance</h2>';
   h+=mine.length?mine.map(c=>{const ps=S.pays.filter(p=>p.date===c.date&&p.sid===me).concat(hasSub(me,c.date)?[1]:[]);return `<div class="card row"><span>${c.date}</span><span>${ps.length?(capped(me,c)?'<span class="tag w">Plan cap reached</span> ':`<span class="tag">+${c.pts} pts</span> `):''}${ps.length?'<span class="tag">Paid</span>':'<span class="tag w">Pending</span>'}</span></div>`}).join(''):'<div class="mute">No check-ins yet. Scan the QR at your next class.</div>';
   return h;
