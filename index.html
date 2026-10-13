@@ -1,329 +1,114 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Attendance</title>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.js"></script>
 <style>
-:root{--bg:#f4f6f3;--card:#fff;--ink:#17262b;--mute:#66767b;--line:#dde3df;--acc:#12715b;--accbg:#dff2ea;--warn:#a85d00;--warnbg:#fdecd2;--bad:#b3261e;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181b;--card:#182327;--ink:#e8efec;--mute:#93a4a8;--line:#2a393d;--acc:#4cc9a3;--accbg:#183a31;--warn:#f0b25c;--warnbg:#3a2c12;--bad:#ff8a80}}
-:root[data-theme="dark"]{--bg:#10181b;--card:#182327;--ink:#e8efec;--mute:#93a4a8;--line:#2a393d;--acc:#4cc9a3;--accbg:#183a31;--warn:#f0b25c;--warnbg:#3a2c12;--bad:#ff8a80}
-*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 'Bricolage Grotesque',system-ui,sans-serif}
-main{max-width:640px;margin:0 auto;padding:16px 16px 48px}
-h1{font-size:22px;font-weight:800;margin:0}h2{font-size:17px;margin:24px 0 8px;font-weight:600}
-.top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
-.tabs{display:flex;background:var(--line);border-radius:10px;padding:3px}
-.tabs button{border:0;background:none;color:var(--mute);padding:7px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}
-.tabs button.on{background:var(--card);color:var(--ink)}
+:root{--bg:#f4f6f3;--card:#fff;--ink:#17262b;--mute:#66767b;--line:#dde3df;--acc:#12715b;--accbg:#dff2ea;--warn:#a85d00;--warnbg:#fdecd2}
+@media(prefers-color-scheme:dark){:root{--bg:#10181b;--card:#182327;--ink:#e8efec;--mute:#93a4a8;--line:#2a393d;--acc:#4cc9a3;--accbg:#183a31;--warn:#f0b25c;--warnbg:#3a2c12}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px 16px 48px}h2{font-size:17px;margin:24px 0 8px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
-.row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.mute{color:var(--mute);font-size:14px}
-button.b,select,input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
-button.b{cursor:pointer;font-weight:600}button.p{background:var(--acc);border-color:var(--acc);color:#fff}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) button.p{color:#06231b}}
-button.b:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.tag{font-size:13px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--accbg);color:var(--acc)}
-.tag.w{background:var(--warnbg);color:var(--warn)}
-.big{font-size:44px;font-weight:800;line-height:1}
-.msg{padding:10px 12px;border-radius:10px;margin:10px 0;font-weight:600}.msg.ok{background:var(--accbg);color:var(--acc)}.msg.no{background:var(--warnbg);color:var(--warn)}
-#qr,#qr2{display:flex;justify-content:center;padding:12px;background:#fff;border-radius:10px;width:max-content;margin:8px auto}
-.pay{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.pay input{width:84px}
-.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sum div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
-.sum b{display:block;font-size:20px}
-button:disabled{opacity:.45;cursor:not-allowed}
-.card.row>.msg{flex:1;margin:0;font-size:15px}
-textarea{width:100%;height:130px;font:13px monospace;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px}
-.f{display:grid;gap:8px;margin-top:10px}.f label{font-size:14px;color:var(--mute);display:grid;gap:3px}.f input,.f textarea{width:100%}.f textarea{height:70px;font:inherit;padding:8px 12px}.f .ck{display:flex;gap:8px;align-items:flex-start}.f .ck input{width:auto;margin-top:4px}
-.demo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--mute);border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-bottom:12px}
-</style></head><body><main>
-<div class="top"><div class="row" style="justify-content:flex-start"><img id="logo" alt="Logo" style="display:none;height:36px;width:36px;border-radius:8px;object-fit:cover"><h1 id="cname">Class Attendance</h1></div>
-<div class="tabs"><button id="tT" onclick="setRole('teacher')">Coach</button><button id="tS" onclick="setRole('student')">Student</button></div></div>
-<div class="demo"><span>Demo:</span><label>Date <input type="date" id="dd" onchange="S.date=this.value;save();render()"></label>
-<label><input type="checkbox" id="byp" onchange="S.bypass=this.checked;save();render()"> ignore class time</label>
-<button class="b" onclick="resetAll()">Reset data</button></div>
-<div id="app"></div></main>
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.mute{color:var(--mute);font-size:14px}
+button,select,input,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+button{cursor:pointer;font-weight:600}.p{background:var(--acc);border-color:var(--acc);color:#fff}
+.tag{font-size:13px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--accbg);color:var(--acc)}.tag.w{background:var(--warnbg);color:var(--warn)}
+.big{font-size:44px;font-weight:800;line-height:1}.msg{padding:10px 12px;border-radius:10px;margin:10px 0;font-weight:600;background:var(--warnbg);color:var(--warn)}.msg.ok{background:var(--accbg);color:var(--acc)}
+.card.row>.msg{flex:1;margin:0;font-size:15px}.f{display:grid;gap:8px;margin-top:10px}.f label{font-size:14px;color:var(--mute);display:grid;gap:3px}.f input,.f textarea{width:100%}
+.ck{display:flex!important;gap:8px}.ck input{width:auto!important}.pay{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.pay input{width:84px}
+</style></head><body><main id="app">Loading...</main>
 <script>
-const KEY='attendance-v2';
-const seed=()=>({role:'teacher',sid:'',date:'',bypass:true,
-cls:{id:'math-sat',name:'Saturday Math',fee:20,pts:10,days:[1,3],start:'20:00',end:'22:00',v2:1,mult:1,maxFree:10,rewards:[{id:'r1',name:'Free drink',cost:50,kind:'drink'},{id:'r2',name:'RM 5 off the class',cost:100,kind:'discount'},{id:'r3',name:'Guest pass for a friend',cost:150,kind:'guest'},{id:'r4',name:'Water bottle or towel',cost:200},{id:'r5',name:'1 free class',cost:400,free:1,kind:'free'},{id:'r6',name:'Coach T-shirt or gloves',cost:600}]},
-students:[['s1','Aisyah','0121000001'],['s2','Wei Jie','0121000002'],['s3','Priya','0121000003'],['s4','Daniel','0121000004'],['s5','Nurul','0121000005']].map(([id,name,phone])=>({id,name,phone})),
-checkins:[],pays:[],redeems:[],bonus:[],subs:[],sales:[],stockLog:[],items:[{id:'water',name:'Water',price:2,stock:24,low:6},{id:'soda',name:'Soda',price:2,stock:24,low:6}]});
-let S;try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
-if(S.cls.start==='09:00')S.cls.start='20:00';S.cls.end=S.cls.end||'22:00';S.cls.lastIn=S.cls.lastIn||'21:30';S.redeems=S.redeems||[];S.bonus=S.bonus||[];S.sales=S.sales||[];S.subs=S.subs||[];S.stockLog=S.stockLog||[];S.items=S.items||seed().items;S.cls.rewards.forEach(r=>{if(!r.kind)r.kind={r1:'drink',r2:'discount',r3:'guest',r5:'free'}[r.id]||'other'});if(!S.cls.v2){const z=seed().cls;S.cls.rewards=z.rewards;S.cls.days=z.days;S.cls.mult=1;S.cls.maxFree=10;S.cls.v2=1}const qp=new URLSearchParams(location.search);if(qp.get('c')||qp.get('shop'))S.role='student';
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
-const myDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).format(new Date());
-const myTime=()=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit'}).format(new Date());
-const D=()=>S.date||myDate();
-const mins=t=>{const[a,b]=t.split(':');return +a*60+ +b};
-const nm=id=>S.students.find(s=>s.id===id).name;
-const cutoff=()=>{const d=new Date(myDate()+'T00:00:00');d.setDate(d.getDate()-183);return d.toISOString().slice(0,10)};
-const paidOn=(d,id)=>S.pays.some(p=>p.date===d&&p.sid===id&&p.method!=='reward')||hasSub(id,d);
-const earned=id=>{const k=cutoff(),mon={};let t=0;
-  S.checkins.filter(c=>c.sid===id&&c.date>=k&&paidOn(c.date,id)).forEach(c=>{if(hasSub(id,c.date)){const m=c.date.slice(0,7);mon[m]=(mon[m]||0)+c.pts}else t+=c.pts});
-  Object.values(mon).forEach(v=>t+=Math.min(v,S.cls.planCap||60));
-  return t+(S.bonus||[]).filter(b=>b.sid===id&&b.date>=k).reduce((a,b)=>a+b.pts,0)};
-const pts=id=>earned(id)-S.redeems.filter(r=>r.sid===id&&r.status!=='rejected').reduce((a,r)=>a+r.cost,0);
+const SB=supabase.createClient('https://lsmpuososyevrtnqyiuu.supabase.co','sb_publishable_o7EA9LahfLqnc_9UbDiXkg_dDzEAPrk');
+const A=document.getElementById('app');
+let cfg,prof,date='',msg='';
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).format(new Date());
 const rm=n=>'RM '+(+n).toFixed(2).replace(/\.00$/,'');
-let showSum=S.role==='teacher';
-function setRole(r){S.role=r;if(r==='teacher')showSum=true;save();render()}
-const t12=t=>{let[h,m]=t.split(':').map(Number);const a=h>=12?'pm':'am';h=h%12||12;return h+(m?':'+String(m).padStart(2,'0'):'')+a};
-function setLogo(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=96;const x=c.getContext('2d'),m=Math.min(im.width,im.height);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,96,96);S.logo=c.toDataURL('image/png');save();render()};im.src=r.result};r.readAsDataURL(f)}
-function summary(d,c,here,dp){
-  if(!showSum)return '';
-  const total=dp.reduce((a,p)=>a+p.amt,0)+S.subs.filter(x=>x.date===d).reduce((a,x)=>a+x.amt,0),owing=here.filter(s=>!dp.some(p=>p.sid===s.id)&&!hasSub(s.id,d)),fresh=S.students.filter(s=>s.joined===d),health=here.filter(s=>s.health);
-  const dow=new Date(d+'T00:00:00').getDay()||7;
-  return `<div class="card" style="border-color:var(--acc)" role="status"><div class="row"><b>Summary for ${d}</b><button class="b" onclick="showSum=false;render()">Dismiss</button></div>
-  <div class="mute">${c.name}, ${t12(c.start)} to ${t12(c.end)}${c.days.includes(dow)?'':' (no class scheduled on this day)'}</div>
-  <ul style="margin:8px 0 0;padding-left:18px;line-height:1.7"><li>${here.length} of ${S.students.length} students checked in</li>${S.items.filter(i=>i.stock<=i.low).length?'<li style="color:var(--warn);font-weight:600">Low stock: '+S.items.filter(i=>i.stock<=i.low).map(i=>i.name+' ('+i.stock+')').join(', ')+'</li>':''}<li>Collected ${rm(total)}; ${owing.length} still to pay${owing.length&&owing.length<=5?' ('+owing.map(s=>s.name).join(', ')+')':''}</li><li>${fresh.length} new student${fresh.length===1?'':'s'} joined${fresh.length?' ('+fresh.map(s=>s.name).join(', ')+')':''}</li>${health.length?'<li style="color:var(--warn);font-weight:600">Health notes today: '+health.map(s=>s.name+' ('+esc(s.health)+')').join('; ')+'</li>':''}</ul></div>`;
+const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ph=p=>{p=(p||'').replace(/\D/g,'');if(p.startsWith('60'))p='0'+p.slice(2);return p};
+const mail=p=>'s'+ph(p)+'@example.com';
+const v=id=>document.getElementById(id).value.trim();
+const ML={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free'};
+const F=(id,l,t,x)=>`<label>${l}<input id="${id}" type="${t||'text'}" ${x||''}></label>`;
+
+function loginView(m,mode){
+  const note=m?`<div class="msg">${esc(m)}</div>`:'';
+  if(mode==='coach'){A.innerHTML=`<div class="card"><b>Coach login</b>${note}<div class="f">${F('ce','Email','email')}${F('cp','Password','password')}<button class="p" onclick="cLogin()">Log in</button><button onclick="loginView()">Student login</button></div></div>`;return}
+  if(mode==='reg'){A.innerHTML=`<div class="card"><b>New student registration</b>${note}<div class="f">${F('re','Email','email')}${F('rf','First name')}${F('rl','Last name')}${F('rp','Contact number','tel','inputmode="tel"')}${F('rpin','Choose a 6-digit PIN','password','inputmode="numeric" maxlength="6"')}${F('ra','Current address')}${F('rn','Emergency contact name')}${F('rc','Emergency contact number','tel')}<label>Health declaration (optional)<textarea id="rh"></textarea></label><label class="ck"><input id="rk" type="checkbox"><span>I agree my details, including health information, may be used by the coach for this class and for emergencies.</span></label><button class="p" onclick="register()">Join and check in</button><button onclick="loginView()">Back</button></div></div>`;return}
+  A.innerHTML=`<div class="card"><b>Student login</b><div class="mute">Enter your phone number and PIN.</div>${note}<div class="f">${F('ph','Phone number','tel','inputmode="tel"')}${F('pin','6-digit PIN','password','inputmode="numeric" maxlength="6"')}<button class="p" onclick="sLogin()">Log in</button><button onclick="loginView('','reg')">New student? Register</button><button onclick="loginView('','coach')">Coach login</button></div></div>`;
 }
-function resetAll(){if(confirm('Clear all demo data?')){S=seed();save();render()}}
-let flash=null;
-function checkIn(sid,manual){
-  const c=S.cls,d=D(),dow=new Date(d+'T00:00:00').getDay()||7;
-  if(!manual){
-    if(!c.days.includes(dow))return {ok:0,t:'Classes are on Monday and Wednesday only.'};
-    if(!S.bypass&&!S.date){const n=mins(myTime()),s=mins(c.start);const L=mins(c.lastIn||'21:30');if(n<s-15||n>L)return {ok:0,t:'Check-in is open from 15 minutes before the class until '+t12(c.lastIn||'21:30')+'.'}}
-  }
-  if(S.checkins.some(x=>x.date===d&&x.sid===sid))return {ok:0,t:'Already checked in for '+d+'.'};
-  S.checkins.push({date:d,sid,pts:c.pts*(c.mult||1),manual:!!manual,at:new Date().toISOString()});save();
-  return {ok:1,t:'Checked in for '+d+'. Points are added once the coach records your payment.'};
+async function sLogin(){
+  const p=ph(v('ph')),pin=v('pin');
+  if(p.length<9||!/^\d{6}$/.test(pin))return loginView('Enter your phone number and 6-digit PIN.');
+  const{error}=await SB.auth.signInWithPassword({email:mail(p),password:pin});
+  error?loginView('Phone number or PIN is not correct.'):load();
 }
-function scan(){flash=checkIn(S.sid);render()}
-let pending=null;
-const normPh=p=>{p=(p||'').replace(/\D/g,'');if(p.startsWith('60'))p='0'+p.slice(2);return p};
-function login(){
-  const p=normPh(document.getElementById('ph').value);
-  if(p.length<9)return alert('Enter a valid phone number.');
-  const s=S.students.find(x=>x.phone===p);
-  if(s){S.sid=s.id;flash=null;save();render()}else{pending=p;render()}
+async function cLogin(){
+  const{error}=await SB.auth.signInWithPassword({email:v('ce'),password:document.getElementById('cp').value});
+  error?loginView('Email or password is not correct.','coach'):load();
 }
-const esc=t=>String(t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function regForm(){
-  const f=(id,l,t,v,req)=>`<label>${l}${req===0?' (optional)':''}<input id="${id}" type="${t||'text'}" value="${v||''}"></label>`;
-  return `<div class="msg no">${pending} is not registered yet. Please fill in your details once.</div><div class="f">`
-  +f('re','Email','email')+f('rf','First name')+f('rl','Last name')+f('rp','Contact number','tel',pending)+f('ra','Current address')
-  +f('rn','Emergency contact name')+f('rc','Emergency contact number','tel')
-  +`<label>Photo (optional)<input id="rpic" type="file" accept="image/*"></label>`
-  +`<label>Health declaration (optional)<textarea id="rh" placeholder="Allergies, asthma, injuries, medication, or anything the coach should know"></textarea></label>`
-  +`<label class="ck"><input id="rk" type="checkbox"><span>I agree that my details, including health information, may be used by the coach for this class and for emergencies.</span></label>`
-  +`<button class="b p" onclick="join()">Join and check in</button><button class="b" onclick="pending=null;render()">Use a different number</button></div>`;
+async function register(){
+  const d={first:v('rf'),last:v('rl'),email:v('re'),phone:ph(v('rp')),address:v('ra'),ec_name:v('rn'),ec_phone:ph(v('rc')),health:v('rh')},pin=v('rpin'),bad=m=>loginView(m,'reg');
+  if(!d.first||!d.last||!d.address||!d.ec_name)return bad('Please fill in all required fields.');
+  if(!/^\S+@\S+\.\S+$/.test(d.email))return bad('Enter a valid email address.');
+  if(d.phone.length<9||d.ec_phone.length<9)return bad('Enter valid phone numbers.');
+  if(!/^\d{6}$/.test(pin))return bad('The PIN must be exactly 6 digits.');
+  if(!document.getElementById('rk').checked)return bad('Please tick the consent box.');
+  const{data,error}=await SB.auth.signUp({email:mail(d.phone),password:pin,options:{data:d}});
+  if(error)return bad(/regist/i.test(error.message)?'This phone number is already registered. Please log in.':error.message);
+  if(!data.session)return bad('Registered, but email confirmation is still on in Supabase. Turn it off, then log in.');
+  await load();await doCheckin();
 }
-function join(){
-  const g=i=>document.getElementById(i).value.trim();
-  const d={first:g('rf'),last:g('rl'),email:g('re'),phone:normPh(g('rp')),address:g('ra'),ecName:g('rn'),ecPhone:normPh(g('rc')),health:g('rh')};
-  if(!d.first||!d.last||!d.address||!d.ecName)return alert('Please fill in all required fields.');
-  if(!/^\S+@\S+\.\S+$/.test(d.email))return alert('Enter a valid email address.');
-  if(d.phone.length<9||d.ecPhone.length<9)return alert('Enter valid phone numbers.');
-  if(S.students.some(s=>s.phone===d.phone))return alert('This contact number is already registered.');
-  if(!document.getElementById('rk').checked)return alert('Please tick the consent box.');
-  const id='s'+Date.now(),f=document.getElementById('rpic').files[0];
-  const fin=ph=>{S.students.push({id,name:esc(d.first+' '+d.last),joined:D(),photo:ph||'',...d});S.sid=id;pending=null;flash=checkIn(id);save();render()};
-  f?shrink(f,fin):fin('')
+async function load(){
+  const{data:{user}}=await SB.auth.getUser();
+  if(!user)return loginView();
+  const[p,c]=await Promise.all([SB.from('profiles').select('*').eq('id',user.id).maybeSingle(),SB.from('settings').select('*').single()]);
+  prof=p.data;cfg=c.data;
+  if(!prof||!cfg)return loginView('Could not load your profile.');
+  prof.role==='coach'?coachView():studentView();
 }
-function info(s){
-  
-  return `<details style="margin-top:8px"><summary class="mute" style="cursor:pointer">Contact, emergency and health details</summary><div class="mute" style="margin-top:6px;line-height:1.7">Contact: <a href="tel:${esc(s.phone)}">${esc(s.phone)}</a><br>Email: ${esc(s.email)||'Not provided'}<br>Address: ${esc(s.address)||'Not provided'}<br>Emergency: ${s.ecName?esc(s.ecName)+', <a href="tel:'+esc(s.ecPhone)+'">'+esc(s.ecPhone)+'</a>':'Not provided'}<br>Health: ${s.health?'<b style="color:var(--warn)">'+esc(s.health)+'</b>':'None declared'}</div></details>`;
+async function logout(){await SB.auth.signOut();msg='';date='';loginView()}
+async function doCheckin(){
+  const{data,error}=await SB.rpc('check_in');
+  msg=error?error.message:data==='ok'?'Checked in. Points are added once the coach records your payment.':data;
+  studentView();
 }
-function logout(){S.sid='';flash=null;pending=null;save();render()}
-function payBar(id,d){
-  if(hasSub(id,d))return `<div class="msg ok" role="status">Monthly plan active for ${d.slice(0,7)}. Your classes are covered. You earn class points up to ${S.cls.planCap||60} a month.</div>`;
-  if(!S.checkins.some(c=>c.date===d&&c.sid===id))return '';
-  const ps=S.pays.filter(p=>p.date===d&&p.sid===id),L={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free class reward'};
-  if(!ps.length)return `<div class="msg no" role="status">Payment pending (${d}): ${rm(feeFor(id,d))}${feeFor(id,d)<S.cls.fee?' after your RM 5 reward':''}. Pay the coach by Cash, Bank-in or TNG to earn your points.</div>`;
-  return `<div class="msg ok" role="status">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} by ${ps.map(p=>L[p.method]).join(', ')} for ${d}.</div>`;
+async function studentView(){
+  const t=today(),[ci,pa,pt]=await Promise.all([SB.from('checkins').select('class_date,pts').order('class_date',{ascending:false}),SB.from('payments').select('class_date,amount,method'),SB.rpc('my_points')]);
+  const pays=pa.data||[],paid=d=>pays.filter(x=>x.class_date===d),inToday=(ci.data||[]).some(c=>c.class_date===t),tp=paid(t);
+  const bar=inToday?(tp.length?`<div class="msg ok">Paid ${rm(tp.reduce((a,p)=>a+ +p.amount,0))} by ${tp.map(p=>ML[p.method]).join(', ')}</div>`:`<div class="msg">Payment pending: ${rm(cfg.fee)}. Pay the coach by Cash, Bank-in or TNG to earn your points.</div>`):'';
+  A.innerHTML=`<div class="card row"><span class="mute">Logged in as <b>${esc(prof.first_name)}</b></span><button onclick="logout()">Log out</button></div>
+  <div class="card row" style="flex-wrap:nowrap;align-items:stretch"><div><div class="mute">Your points</div><div class="big">${pt.data||0}</div></div>${bar}</div>
+  <div class="card"><b>${esc(cfg.class_name)}</b><div class="mute">After scanning the class QR, tap Check in.</div><button class="p" style="width:100%;padding:14px;margin-top:10px" onclick="doCheckin()">Check in</button>${msg?`<div class="msg ${msg.startsWith('Checked')?'ok':''}">${esc(msg)}</div>`:''}</div>
+  <h2>My attendance</h2>${(ci.data||[]).map(c=>`<div class="card row"><span>${c.class_date}</span>${paid(c.class_date).some(p=>p.method!=='reward')?`<span class="tag">+${c.pts} pts</span>`:'<span class="tag w">Payment pending</span>'}</div>`).join('')||'<div class="mute">No check-ins yet.</div>'}`;
 }
-function redeem(rid){
-  const r=S.cls.rewards.find(x=>x.id===rid);if(!r||pts(S.sid)<r.cost)return;
-  if(S.redeems.some(x=>x.sid===S.sid&&x.date===D()&&x.status!=='rejected'))return alert('Only one reward can be redeemed per class day.');
-  if((r.kind==='free'||r.kind==='discount')&&hasSub(S.sid,D()))return alert('You are on the monthly plan, so please choose another reward.');
-  if(r.free&&new Set(S.pays.filter(p=>p.date===D()).map(p=>p.sid)).size>S.cls.maxFree)return alert('The free class is only available when the class has spare seats ('+S.cls.maxFree+' or fewer paying students today).');
-  S.redeems.push({id:'d'+Date.now(),sid:S.sid,name:r.name,cost:r.cost,status:'pending',date:D(),kind:r.kind||'other'});save();render()
+async function coachView(){
+  const d=date||today();
+  const[st,ci,pa]=await Promise.all([SB.from('profiles').select('*').eq('role','student').order('first_name'),SB.from('checkins').select('*'),SB.from('payments').select('*')]);
+  const S=st.data||[],C=ci.data||[],P=pa.data||[];
+  const sum=f=>{const t={cash:0,bank_in:0,tng:0};P.filter(p=>f(p.class_date)&&t[p.method]!==undefined).forEach(p=>t[p.method]+=+p.amount);return t};
+  const card=(title,f)=>{const t=sum(f);return `<div class="card"><div class="row"><b>${title}</b><b>${rm(t.cash+t.bank_in+t.tng)}</b></div><div class="mute">Cash ${rm(t.cash)}, Bank-in ${rm(t.bank_in)}, TNG ${rm(t.tng)}</div></div>`};
+  const rows=S.map(s=>{
+    const here=C.some(c=>c.student_id===s.id&&c.class_date===d),ps=P.filter(p=>p.student_id===s.id&&p.class_date===d);
+    const det=`<details style="margin-top:8px"><summary class="mute" style="cursor:pointer">Contact, emergency and health details</summary><div class="mute" style="margin-top:6px;line-height:1.7">Contact: <a href="tel:${esc(s.phone)}">${esc(s.phone)}</a><br>Email: ${esc(s.email)}<br>Address: ${esc(s.address)}<br>Emergency: ${esc(s.ec_name)}, <a href="tel:${esc(s.ec_phone)}">${esc(s.ec_phone)}</a><br>Health: ${s.health?'<b style="color:var(--warn)">'+esc(s.health)+'</b>':'None declared'}</div></details>`;
+    let h=`<div class="card"><div class="row"><b>${esc(s.first_name)} ${esc(s.last_name)} <span class="mute">${esc(s.phone)}</span></b>`;
+    if(!here)h+=`<span><span class="tag w">Absent</span> <button onclick="act('in','${s.id}')">Mark present</button></span></div>`;
+    else{h+=`<span><span class="tag">Present</span> <button onclick="act('undo','${s.id}')">Undo</button></span></div>`;
+      h+=ps.length?`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+ +p.amount,0))} by ${ps.map(p=>ML[p.method]).join(', ')}</span><button onclick="act('unpay','${s.id}')">Remove payment</button></div>`:`<div class="pay"><input id="a${s.id}" type="number" step="0.5" value="${cfg.fee}" aria-label="Amount"><select id="m${s.id}" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option><option value="reward">Free (guest pass)</option></select><button class="p" onclick="act('pay','${s.id}')">Record payment</button></div>`}
+    return h+det+'</div>'}).join('');
+  A.innerHTML=`<div class="card row"><b>${esc(cfg.class_name)} (Coach)</b><button onclick="logout()">Log out</button></div>
+  <div class="card"><label class="row"><span>Test mode: ignore class days and times</span><input type="checkbox" ${cfg.test_mode?'checked':''} onchange="setTest(this.checked)"></label></div>
+  ${msg?`<div class="msg">${esc(msg)}</div>`:''}
+  <h2>Collection</h2>${card('Daily ('+d+')',x=>x===d)}${card('This month ('+d.slice(0,7)+')',x=>x.slice(0,7)===d.slice(0,7))}${card('Total (all time)',()=>true)}
+  <h2>Attendance</h2><div class="card row"><span class="mute">Date</span><input type="date" value="${d}" onchange="date=this.value;coachView()"></div>${rows||'<div class="mute">No students have registered yet.</div>'}`;
 }
-function decide(id,ok){
-  const r=S.redeems.find(x=>x.id===id);if(!r)return;
-  r.status=ok?'approved':'rejected';
-  if(ok){
-    const paid=S.pays.some(p=>p.date===r.date&&p.sid===r.sid);
-    if(r.kind==='free'){if(paid)alert('This student already paid for '+r.date+'. Please refund them manually.');else S.pays.push({date:r.date,sid:r.sid,amt:0,method:'reward'})}
-    if(r.kind==='discount'&&paid)alert('This student already paid for '+r.date+'. Please return RM 5 manually.');
-    if(r.kind==='drink'){const el=document.getElementById('rd'+id),it=S.items.find(i=>i.id===(el&&el.value))||S.items[0];if(it&&it.stock>0){it.stock--;S.sales.push({id:'x'+Date.now(),date:r.date,sid:r.sid,item:it.id,qty:1,amt:0,method:'reward'})}else alert('That drink is out of stock. Give the reward later.')}
-    if(r.kind==='guest'){r.code='GP'+(1000+Math.floor(Math.random()*9000));const x=new Date(r.date+'T00:00:00');x.setDate(x.getDate()+30);r.exp=x.toISOString().slice(0,10)}
-  }
-  save();render()
+async function setTest(on){await SB.from('settings').update({test_mode:on}).eq('id',1);cfg.test_mode=on}
+async function act(k,sid){
+  const d=date||today();let r;
+  if(k==='in')r=await SB.from('checkins').insert({student_id:sid,class_date:d,pts:cfg.pts,manual:true});
+  if(k==='undo'){r=await SB.from('checkins').delete().eq('student_id',sid).eq('class_date',d);await SB.from('payments').delete().eq('student_id',sid).eq('class_date',d)}
+  if(k==='unpay')r=await SB.from('payments').delete().eq('student_id',sid).eq('class_date',d);
+  if(k==='pay'){const a=+v('a'+sid),m=v('m'+sid);if(!(a>0)&&m!=='reward'){msg='Enter an amount.';return coachView()}r=await SB.from('payments').insert({student_id:sid,class_date:d,amount:a||0,method:m})}
+  msg=r&&r.error?r.error.message:'';coachView();
 }
-function rewardsView(id){
-  const p=pts(id),R=S.cls.rewards,next=R.find(r=>r.cost>p);
-  let h=`<details ${rwS?'open':''} ontoggle="rwS=this.open" style="margin-top:24px"><summary style="cursor:pointer;font-size:17px;font-weight:600">Rewards</summary><div class="card" style="margin-top:8px">`;
-  h+=next?`<div class="mute">${next.cost-p} more points to unlock: ${next.name}</div><div style="height:8px;background:var(--line);border-radius:99px;margin-top:6px"><div style="height:8px;width:${Math.min(100,p/next.cost*100)}%;background:var(--acc);border-radius:99px"></div></div>`:'<div class="mute">You have enough points for every reward.</div>';
-  h+='</div>'+R.map(r=>`<div class="card row"><span>${r.name}<br><span class="mute">${r.cost} points</span></span><button class="b p" ${p>=r.cost?'':'disabled'} onclick="redeem('${r.id}')">Redeem</button></div>`).join('');
-  const bn=S.bonus.filter(b=>b.sid===id).slice(-3).reverse();if(bn.length)h+='<div class="mute" style="margin:6px 0">Bonus points</div>'+bn.map(b=>`<div class="card row"><span>${b.reason}</span><span class="tag">+${b.pts}</span></div>`).join('');
-  const mine=S.redeems.filter(r=>r.sid===id).slice(-3).reverse();
-  if(mine.length)h+='<div class="mute" style="margin:6px 0">Your requests</div>'+mine.map(r=>`<div class="card row"><span>${r.name}${r.code?`<br><span class="mute">Code ${r.code}, valid until ${r.exp}${r.used?' (used)':''}</span>`:''}</span><span class="tag ${r.status==='approved'?'':'w'}">${r.status==='pending'?'Waiting for coach':r.status==='approved'?'Approved':'Declined'}</span></div>`).join('');
-  return h+'</details>'
-}
-function reqView(){
-  const q=S.redeems.filter(r=>r.status==='pending'),gp=S.redeems.filter(r=>r.kind==='guest'&&r.status==='approved'&&!r.used);const gv=gp.length?'<h2>Guest passes</h2>'+gp.map(r=>`<div class="card row"><span><b>${r.code}</b> from ${nm(r.sid)}<br><span class="mute">Valid until ${r.exp}</span></span><button class="b p" onclick="usePass('${r.id}')">Mark used</button></div>`).join(''):'';if(!q.length)return gv;
-  return gv+'<h2>Reward requests</h2>'+q.map(r=>`<div class="card"><div class="row"><span><b>${nm(r.sid)}</b> wants: ${r.name}<br><span class="mute">${r.cost} points</span>${r.kind==='drink'?`<br><select id="rd${r.id}" aria-label="Drink">${S.items.map(i=>`<option value="${i.id}">${i.name}</option>`).join('')}</select>`:''}</span><span><button class="b p" onclick="decide('${r.id}',true)">Approve</button> <button class="b" onclick="decide('${r.id}',false)">Decline</button></span></div></div>`).join('');
-}
-const REASONS=[['Referral (friend joined)',100],['Perfect month',30],['Grading passed',50],['Tournament or demo',30],['Review or tagged post',20],['Comeback after 3 weeks',20],['Birthday month',30],['Student of the month',30]];
-function bonusView(){
-  return `<h2>Give bonus points</h2><div class="card"><div class="pay"><select id="bs" aria-label="Student">${S.students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select><select id="br" onchange="document.getElementById('bp').value=this.value.split('|')[1]" aria-label="Reason">${REASONS.map(r=>`<option value="${r[0]}|${r[1]}">${r[0]}</option>`).join('')}</select><input id="bp" type="number" value="100" aria-label="Points"><button class="b p" onclick="giveBonus()">Give</button></div><div class="mute" style="margin-top:6px">Bonuses other than referrals are capped at 30 points per student per month.</div></div>`
-}
-function giveBonus(){
-  const v=i=>document.getElementById(i).value,sid=v('bs'),reason=v('br').split('|')[0],p=+v('bp'),m=D().slice(0,7),ref=reason.startsWith('Referral');
-  if(!(p>0))return alert('Enter the points.');
-  const used=S.bonus.filter(b=>b.sid===sid&&b.date.slice(0,7)===m&&!b.ref).reduce((a,b)=>a+b.pts,0);
-  if(!ref&&used+p>30)return alert('Monthly cap reached. Only '+Math.max(0,30-used)+' more bonus points allowed this month for this student.');
-  S.bonus.push({id:'b'+Date.now(),sid,pts:p,reason,date:D(),ref});save();alert(p+' points given to '+nm(sid)+' ('+reason+').');render()
-}
-function adminExtra(){
-  const c=S.cls;
-  return `<details class="card" ${rwOpen?'open':''} ontoggle="rwOpen=this.open"><summary style="cursor:pointer;font-weight:600">Rewards (edit)</summary>${c.rewards.map((r,i)=>`<div class="pay"><input value="${r.name}" style="flex:1;width:auto" onchange="editR(${i},'name',this.value)" aria-label="Reward name"><select onchange="editR(${i},'kind',this.value)" aria-label="Reward type">${[['drink','Free drink'],['discount','RM 5 off'],['free','Free class'],['guest','Guest pass'],['other','Other gift']].map(k=>`<option value="${k[0]}" ${r.kind===k[0]?'selected':''}>${k[1]}</option>`).join('')}</select><input type="number" value="${r.cost}" onchange="editR(${i},'cost',this.value)" aria-label="Points cost"><button class="b" onclick="delR(${i})">Remove</button></div>`).join('')}<div class="pay"><button class="b" onclick="addR()">Add reward</button></div><div class="mute" style="margin-top:8px">Pricing tip: points = your cost in RM x 20.</div></details><div class="card"><div class="row"><span>Double points (slow periods)</span><input type="checkbox" ${c.mult===2?'checked':''} onchange="S.cls.mult=this.checked?2:1;save();render()" aria-label="Double points"></div><div class="row" style="margin-top:10px"><span>Free class only if paying students are at most</span><input type="number" value="${c.maxFree}" style="width:70px" onchange="S.cls.maxFree=+this.value||10;save()" aria-label="Seat limit"></div><div class="row" style="margin-top:10px"><span>Monthly plan points cap per month</span><input type="number" value="${c.planCap||60}" style="width:70px" onchange="S.cls.planCap=+this.value||60;save()" aria-label="Plan points cap"></div></div>`
-}
-function editR(i,k,v){S.cls.rewards[i][k]=k==='cost'?(+v||0):v.replace(/[<>&"]/g,'').trim();save()}
-function delR(i){S.cls.rewards.splice(i,1);save();render()}
-function addR(){S.cls.rewards.push({id:'r'+Date.now(),name:'New reward',cost:100});save();render()}
-function shrink(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=96;const x=c.getContext('2d'),m=Math.min(im.width,im.height);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,96,96);cb(c.toDataURL('image/jpeg',.8))};im.src=r.result};r.readAsDataURL(f)}
-function setPhoto(i){const f=i.files[0];if(f)shrink(f,p=>{S.students.find(s=>s.id===S.sid).photo=p;save();render()})}
-const av=(s,z)=>s.photo?`<img src="${s.photo}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover">`:`<span style="width:${z}px;height:${z}px;border-radius:50%;background:var(--accbg);color:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none">${(s.name||'?')[0]}</span>`;
-const MLBL={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free reward'};
-const hasSub=(sid,d)=>S.subs.some(x=>x.sid===sid&&x.month===d.slice(0,7));
-let lbOpen=false,lbTimer;
-function lbStart(){lbCancel();lbTimer=setTimeout(lbShow,500)}
-function lbCancel(){clearTimeout(lbTimer)}
-function lbShow(){lbOpen=true;render()}
-function lbView(board,me){
-  const mi=board.findIndex(b=>b.id===me),row=(b,i)=>`<div class="row" style="padding:6px 0;${b.id===me?'color:var(--acc);font-weight:700':''}"><span>${i+1}. ${b.n}</span><span>${b.p} pts</span></div>`;
-  return `<div role="dialog" aria-modal="true" aria-label="Leaderboard" onclick="lbOpen=false;render()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10"><div class="card" style="width:100%;max-width:360px;margin:0" onclick="event.stopPropagation()"><div class="row" style="margin-bottom:6px"><b>Leaderboard</b><button class="b" onclick="lbOpen=false;render()">Close</button></div>${board.slice(0,10).map(row).join('')}${mi>=10?'<div class="mute">...</div>'+row(board[mi],mi):''}</div></div>`;
-}
-function collect(f){
-  const t={cash:0,bank_in:0,tng:0},c={fees:0,plans:0,drinks:0};
-  S.pays.filter(p=>f(p.date)&&t[p.method]!==undefined).forEach(p=>{t[p.method]+=p.amt;c.fees+=p.amt});
-  S.subs.filter(x=>f(x.date)&&t[x.method]!==undefined).forEach(x=>{t[x.method]+=x.amt;c.plans+=x.amt});
-  S.sales.filter(x=>x.method&&t[x.method]!==undefined&&f(x.paid||x.date)).forEach(x=>{t[x.method]+=x.amt;c.drinks+=x.amt});
-  return {t,c,tot:c.fees+c.plans+c.drinks}
-}
-function collectView(d){
-  const card=(title,r)=>`<div class="card"><div class="row"><b>${title}</b><b>${rm(r.tot)}</b></div><div class="mute">Class fees ${rm(r.c.fees)}, monthly plans ${rm(r.c.plans)}, drinks ${rm(r.c.drinks)}</div><div class="mute">Cash ${rm(r.t.cash)}, Bank-in ${rm(r.t.bank_in)}, TNG ${rm(r.t.tng)}</div></div>`;
-  return '<h2>Collection</h2>'+card('Daily collection ('+d+')',collect(x=>x===d))+card('This month ('+d.slice(0,7)+')',collect(x=>x.slice(0,7)===d.slice(0,7)))+card('Total collection (all time)',collect(()=>true));
-}
-const capped=(id,c)=>hasSub(id,c.date)&&S.checkins.filter(x=>x.sid===id&&x.date.slice(0,7)===c.date.slice(0,7)&&x.date<=c.date).reduce((a,x)=>a+x.pts,0)>(S.cls.planCap||60);
-const monthClasses=m=>{const[y,mo]=m.split('-').map(Number);let n=0;for(let d=new Date(y,mo-1,1);d.getMonth()===mo-1;d.setDate(d.getDate()+1))if(S.cls.days.includes(d.getDay()||7))n++;return n};
-function subAdmin(){
-  const m=D().slice(0,7),act=S.subs.filter(x=>x.month===m);
-  return `<h2>Monthly plans</h2><div class="card"><div class="mute">This month (${m}) has ${monthClasses(m)} classes. The plan keeps the same price every month and covers all of them. Students earn 10 points per class, up to ${S.cls.planCap||60} points a month on a plan.</div><div class="pay"><select id="ss" aria-label="Student">${S.students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select><input id="sa" type="number" value="120" aria-label="Amount"><select id="sm" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="b p" onclick="addSub()">Record plan</button></div></div>`+act.map(x=>`<div class="card row"><span><b>${nm(x.sid)}</b><br><span class="mute">${rm(x.amt)} by ${MLBL[x.method]}</span></span><button class="b" onclick="delSub('${x.id}')">Remove</button></div>`).join('');
-}
-function addSub(){const v=i=>document.getElementById(i).value,sid=v('ss'),a=+v('sa'),m=D().slice(0,7);if(!(a>0))return alert('Enter an amount.');if(hasSub(sid,D()))return alert('This student already has a plan for '+m+'.');S.subs.push({id:'p'+Date.now(),sid,month:m,amt:a,method:v('sm'),date:D()});save();render()}
-function delSub(id){S.subs=S.subs.filter(x=>x.id!==id);save();render()}
-const feeFor=(sid,d)=>Math.max(0,S.cls.fee-(S.redeems.some(r=>r.sid===sid&&r.date===d&&r.status==='approved'&&r.kind==='discount')?5:0));
-function usePass(id){const r=S.redeems.find(x=>x.id===id);if(!r)return;r.friend=(prompt("Friend's name?")||'').replace(/[<>&"]/g,'').trim();r.used=true;save();render()}
-function settleDrinks(sid){const m=document.getElementById('od'+sid).value;S.sales.filter(x=>x.sid===sid&&!x.method).forEach(x=>{x.method=m;x.paid=D()});save();render()}
-function outView(){
-  const rows=S.students.map(s=>{
-    const cl=S.checkins.filter(c=>c.sid===s.id&&!S.pays.some(p=>p.date===c.date&&p.sid===s.id)&&!hasSub(s.id,c.date));
-    const cf=cl.reduce((a,c)=>a+feeFor(s.id,c.date),0),dr=S.sales.filter(x=>x.sid===s.id&&!x.method).reduce((a,x)=>a+x.amt,0);
-    return {s,n:cl.length,cf,dr,t:cf+dr}}).filter(r=>r.t>0);
-  if(!rows.length)return '<h2>Outstanding</h2><div class="card mute">Nothing outstanding.</div>';
-  return `<h2>Outstanding: ${rm(rows.reduce((a,r)=>a+r.t,0))}</h2>`+rows.map(r=>`<div class="card"><div class="row"><b>${r.s.name}</b><b>${rm(r.t)}</b></div><div class="mute">Class fees ${rm(r.cf)}${r.n?' ('+r.n+(r.n>1?' classes':' class')+')':''}, drinks ${rm(r.dr)}</div>${r.dr?`<div class="pay"><select id="od${r.s.id}" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="b p" onclick="settleDrinks('${r.s.id}')">Drinks paid</button></div>`:''}</div>`).join('');
-}
-let shopOpen=new URLSearchParams(location.search).get('shop')==='1',stOpen=false,rwOpen=false,rwS=true;
-let shopMsg='';
-function buy(id){
-  const it=S.items.find(x=>x.id===id),q=+document.getElementById('q_'+id).value;
-  if(!it||it.stock<q){shopMsg='Not enough stock left.';return render()}
-  S.sales.push({id:'x'+Date.now(),date:D(),sid:S.sid,item:id,qty:q,amt:q*it.price,method:''});it.stock-=q;shopMsg='Added '+q+' x '+it.name+' ('+rm(q*it.price)+'). Please pay the coach.';save();render()
-}
-function shopView(me){
-  const mine=S.sales.filter(x=>x.date===D()&&x.sid===me);
-  let h=`<details ${shopOpen?'open':''} ontoggle="shopOpen=this.open" style="margin-top:24px"><summary style="cursor:pointer;font-size:17px;font-weight:600">Buy drinks</summary><div style="margin-top:8px"></div>${shopMsg?`<div class="msg ok" role="status">${shopMsg}</div>`:''}`;
-  h+=S.items.map(i=>`<div class="card row"><span>${i.name}<br><span class="mute">${rm(i.price)} each${i.stock<=0?', sold out':''}</span></span><span><select id="q_${i.id}" aria-label="Quantity">${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join('')}</select> <button class="b p" ${i.stock>0?'':'disabled'} onclick="buy('${i.id}')">Buy</button></span></div>`).join('');
-  h+=mine.map(x=>{const it=S.items.find(i=>i.id===x.item);return `<div class="card row"><span>${x.qty} x ${it?it.name:'Item'}</span><span class="tag ${x.method?'':'w'}">${x.method?'Paid '+rm(x.amt)+' by '+MLBL[x.method]:'Pay coach '+rm(x.amt)}</span></div>`}).join('');
-  const owe=S.sales.filter(x=>x.sid===me&&!x.method).reduce((a,x)=>a+x.amt,0);
-  if(owe)h+=`<div class="msg no">Drinks to pay: ${rm(owe)}</div>`;
-  return h+'</details>'
-}
-function sale(id,m){const x=S.sales.find(s=>s.id===id);if(x){x.method=m;x.paid=m?D():'';save();render()}}
-function delSale(id){const x=S.sales.find(s=>s.id===id);if(!x)return;const it=S.items.find(i=>i.id===x.item);if(it)it.stock+=x.qty;S.sales=S.sales.filter(s=>s.id!==id);save();render()}
-function restock(id){const q=+document.getElementById('rs'+id).value;if(!(q>0))return alert('Enter a quantity.');S.items.find(i=>i.id===id).stock+=q;S.stockLog.push({date:D(),item:id,type:'restock',qty:q});save();render()}
-function countStock(id){const v=document.getElementById('ct'+id).value;if(v==='')return alert('Enter the remaining count.');const it=S.items.find(i=>i.id===id),c=+v;S.stockLog.push({date:D(),item:id,type:'count',counted:c,expected:it.stock});it.stock=c;save();render()}
-function addItem(){const n=(prompt('Item name?')||'').replace(/[<>&"]/g,'').trim();if(!n)return;const p=+prompt('Price in RM?','2');if(!(p>0))return;S.items.push({id:'i'+Date.now(),name:n,price:p,stock:0,low:5});save();render()}
-function shopAdmin(){
-  const d=D(),sl=S.sales.filter(x=>x.date===d),tot=sl.reduce((a,x)=>a+x.amt,0),paid=sl.filter(x=>x.method).reduce((a,x)=>a+x.amt,0);
-  let h=`<h2>Drink shop</h2><div class="sum"><div><span class="mute">Sold</span><b>${rm(tot)}</b></div><div><span class="mute">Paid</span><b>${rm(paid)}</b></div><div><span class="mute">Unpaid</span><b>${rm(tot-paid)}</b></div></div><div style="margin-top:8px"></div>`;
-  h+=sl.map(x=>{const it=S.items.find(i=>i.id===x.item)||{name:'Item'};return `<div class="card row"><span>${nm(x.sid)}: ${x.qty} x ${it.name} (${rm(x.amt)})</span>`+(x.method?`<span><span class="tag">${MLBL[x.method]}</span> <button class="b" onclick="sale('${x.id}','')">Unpay</button></span>`:`<span><select id="sm${x.id}" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select> <button class="b p" onclick="sale('${x.id}',document.getElementById('sm${x.id}').value)">Paid</button> <button class="b" onclick="delSale('${x.id}')">Remove</button></span>`)+`</div>`}).join('');
-  h+=`<details class="card" ${stOpen?'open':''} ontoggle="stOpen=this.open"><summary style="cursor:pointer;font-weight:600">Stock levels</summary>`+S.items.map(i=>{const lg=[...S.stockLog].reverse().find(l=>l.item===i.id&&l.type==='count');return `<div style="margin-top:12px"><div class="row"><b>${i.name}</b><span class="tag ${i.stock<=i.low?'w':''}">${i.stock} left${i.stock<=i.low?', low':''}</span></div><div class="pay"><input id="rs${i.id}" type="number" min="1" placeholder="Add" aria-label="Add stock"><button class="b" onclick="restock('${i.id}')">Add stock</button><input id="ct${i.id}" type="number" min="0" placeholder="Counted" aria-label="Remaining count"><button class="b" onclick="countStock('${i.id}')">Save count</button></div>${lg?`<div class="mute">Last count ${lg.date}: ${lg.counted} counted, system had ${lg.expected}${lg.counted<lg.expected?' (short '+(lg.expected-lg.counted)+', '+rm((lg.expected-lg.counted)*i.price)+')':''}</div>`:''}</div>`}).join('')+`<div class="pay"><button class="b" onclick="addItem()">Add item</button></div></details>`;
-  return h
-}
-function loginView(){
-  let h=`<div class="card"><b>${S.cls.name}</b><div class="mute">Enter your phone number to check in. New here? We will ask for your name once.</div>`;
-  if(!pending)h+=`<div class="pay"><input id="ph" type="tel" inputmode="tel" placeholder="e.g. 0123456789" style="flex:1;width:auto" aria-label="Phone number"><button class="b p" onclick="login()">Continue</button></div>`;
-  else h+=regForm();
-  h+=`</div><div class="mute">Demo numbers: ${S.students.filter(s=>s.phone).slice(0,5).map(s=>s.name+' '+s.phone).join(', ')}</div>`;
-  return h
-}
-function mark(sid){checkIn(sid,true);render()}
-function undo(sid){const d=D();S.checkins=S.checkins.filter(x=>!(x.date===d&&x.sid===sid));S.pays=S.pays.filter(p=>!(p.date===d&&p.sid===sid));save();render()}
-function pay(sid){
-  const a=+document.getElementById('a'+sid).value,m=document.getElementById('m'+sid).value;
-  if(!(a>0)&&m!=='reward')return alert('Enter an amount.');
-  S.pays.push({date:D(),sid,amt:a,method:m});save();render()
-}
-function unpay(sid){S.pays=S.pays.filter(p=>!(p.date===D()&&p.sid===sid));save();render()}
-function csv(){
-  const d=D();let t='date,student,checked_in,paid,method\n';
-  S.students.forEach(s=>{const c=S.checkins.some(x=>x.date===d&&x.sid===s.id),ps=S.pays.filter(p=>p.date===d&&p.sid===s.id);
-    t+=[d,s.name,c?'yes':'no',ps.reduce((a,p)=>a+p.amt,0),ps.map(p=>p.method).join('+')].join(',')+'\n'});
-  document.getElementById('csvbox').innerHTML='<textarea readonly onclick="this.select()">'+t+'</textarea><div class="mute">Tap the box, copy, and paste into Excel or Sheets.</div>';
-}
-function teacher(){
-  const d=D(),c=S.cls,here=S.students.filter(s=>S.checkins.some(x=>x.date===d&&x.sid===s.id));
-  const dp=S.pays.filter(p=>p.date===d),tot=m=>dp.filter(p=>p.method===m).reduce((a,p)=>a+p.amt,0)+S.subs.filter(x=>x.date===d&&x.method===m).reduce((a,x)=>a+x.amt,0);
-  const owing=here.filter(s=>!dp.some(p=>p.sid===s.id)&&!hasSub(s.id,d)).length;
-  let h=summary(d,c,here,dp)+`<div class="card"><div class="row"><div><b>${c.name}</b><div class="mute">${t12(c.start)} to ${t12(c.end)} · Fee ${rm(c.fee)} per class · ${c.pts} points per check-in</div></div></div>
-  <div id="qr"></div><div class="mute" style="text-align:center">One fixed QR for every class. Print it once and put it on the wall. Scanning it opens the student check-in page.</div></div>
-  <div class="card"><b>Drink shop QR</b><div id="qr2"></div><div class="mute" style="text-align:center">Put this at the drink table. Students scan it, log in, choose water or soda and tap Buy.</div></div>${collectView(d)}<h2>Class fee payments on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
-  <div class="mute" style="margin-top:6px">Total ${rm(dp.reduce((a,p)=>a+p.amt,0)+S.subs.filter(x=>x.date===d).reduce((a,x)=>a+x.amt,0))} · ${owing} still to pay · ${here.length} of ${S.students.length} present</div>
-  ${reqView()}<h2>Attendance</h2>`;
-  S.students.forEach(s=>{
-    const ci=S.checkins.find(x=>x.date===d&&x.sid===s.id),ps=dp.filter(p=>p.sid===s.id);
-    h+=`<div class="card"><div class="row"><span style="display:flex;align-items:center;gap:8px">${av(s,32)}<b>${s.name} <span class="mute">${s.phone||''}</span></b></span>`;
-    if(!ci)h+=`<span><span class="tag w">Absent</span> <button class="b" onclick="mark('${s.id}')">Mark present</button></span></div>`;
-    else{
-      h+=`<span><span class="tag">${ci.manual?'Present (manual)':'Checked in'}</span> <button class="b" onclick="undo('${s.id}')">Undo</button></span></div>`;
-      if(hasSub(s.id,d)&&!ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Monthly plan: no payment needed</span></div>`;else if(ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} · ${ps.map(p=>({cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free'})[p.method]).join(', ')}</span><button class="b" onclick="unpay('${s.id}')">Remove payment</button></div>`;
-      else h+=`${feeFor(s.id,d)<c.fee?'<div class="mute">Reward applied: RM 5 off</div>':''}<div class="pay"><input id="a${s.id}" type="number" min="0" step="0.5" value="${feeFor(s.id,d)}" aria-label="Amount"><select id="m${s.id}" aria-label="Payment method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option><option value="reward">Free (guest pass)</option></select><button class="b p" onclick="pay('${s.id}')">Record payment</button></div>`;
-    }
-    h+=info(s)+'</div>';
-  });
-  h+=subAdmin()+outView()+shopAdmin()+bonusView()+`<h2>Admin settings</h2>${adminExtra()}<div class="card"><div class="row" style="margin-bottom:10px"><span>Class name</span><input value="${c.name}" onchange="S.cls.name=this.value.replace(/[<>&&quot;]/g,'').trim()||S.cls.name;save();render()" aria-label="Class name"></div><div class="row"><span>Class logo</span><span><input type="file" id="lf" accept="image/*" onchange="setLogo(this)" aria-label="Upload logo">${S.logo?' <button class="b" onclick="S.logo=\'\';save();render()">Remove</button>':''}</span></div></div><button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
-  return h;
-}
-function student(){
-  if(!S.students.some(s=>s.id===S.sid))return loginView();
-  const d=D(),me=S.sid,mine=S.checkins.filter(c=>c.sid===me).sort((a,b)=>b.date.localeCompare(a.date));
-  const board=S.students.map(s=>({n:s.name,p:earned(s.id),id:s.id})).sort((a,b)=>b.p-a.p);
-  let h=`<div class="card row"><span style="display:flex;align-items:center;gap:10px">${av(S.students.find(s=>s.id===me),44)}<span class="mute">Logged in as <b>${nm(me)}</b><br><label style="cursor:pointer;color:var(--acc);font-weight:600">${S.students.find(s=>s.id===me).photo?'Change photo':'Add photo'}<input type="file" accept="image/*" hidden onchange="setPhoto(this)"></label></span></span><button class="b" onclick="logout()">Switch student</button></div>
-  <div class="card row" style="align-items:stretch;flex-wrap:nowrap"><div id="pa" role="button" tabindex="0" aria-label="Your points. Press and hold to see the leaderboard" style="user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer" onpointerdown="lbStart()" onpointerup="lbCancel()" onpointerleave="lbCancel()" onpointercancel="lbCancel()" oncontextmenu="return false" onkeydown="if(event.key==='Enter')lbShow()"><div class="mute">Your points</div><div class="big">${pts(me)}</div><div class="mute" style="font-size:12px;margin-top:4px">Hold to see leaderboard</div></div>${payBar(me,d)}</div>
-  <div class="card"><b>${S.cls.name}</b><div class="mute">After scanning the class QR with your phone camera, tap Check in to record your attendance.</div>
-  <button class="b p" style="margin-top:10px;width:100%;padding:14px" onclick="scan()">Check in</button>
-  ${flash?`<div class="msg ${flash.ok?'ok':'no'}">${flash.t}</div>`:''}</div>
-  ${rewardsView(me)}${shopView(me)}`;
-  if(lbOpen)h+=lbView(board,me);
-  h+='<h2>My attendance</h2>';
-  h+=mine.length?mine.map(c=>{const ps=S.pays.filter(p=>p.date===c.date&&p.sid===me).concat(hasSub(me,c.date)?[1]:[]);return `<div class="card row"><span>${c.date}</span><span>${ps.length?(capped(me,c)?'<span class="tag w">Plan cap reached</span> ':`<span class="tag">+${c.pts} pts</span> `):''}${ps.length?'<span class="tag">Paid</span>':'<span class="tag w">Pending</span>'}</span></div>`}).join(''):'<div class="mute">No check-ins yet. Scan the QR at your next class.</div>';
-  return h;
-}
-function render(){
-  document.getElementById('cname').textContent=S.cls.name;
-  const lg=document.getElementById('logo');if(S.logo)lg.src=S.logo;lg.style.display=S.logo?'block':'none';
-  document.getElementById('tT').className=S.role==='teacher'?'on':'';
-  document.getElementById('tS').className=S.role==='student'?'on':'';
-  document.getElementById('dd').value=S.date||'';document.getElementById('dd').placeholder=myDate();
-  document.getElementById('byp').checked=S.bypass;
-  document.getElementById('app').innerHTML=S.role==='teacher'?teacher():student();
-  if(S.role==='teacher'){const q=document.getElementById('qr');try{new QRCode(q,{text:location.href.split('?')[0].split('#')[0]+'?c='+S.cls.id,width:150,height:150})}catch(e){q.textContent='QR'}try{new QRCode(document.getElementById('qr2'),{text:location.href.split('?')[0].split('#')[0]+'?shop=1',width:150,height:150})}catch(e){}}
-}
-render();
+SB.auth.getSession().then(({data})=>data.session?load():loginView());
 </script></body></html>
