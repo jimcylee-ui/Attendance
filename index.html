@@ -28,7 +28,7 @@ button.b:focus-visible,select:focus-visible,input:focus-visible{outline:2px soli
 .tag.w{background:var(--warnbg);color:var(--warn)}
 .big{font-size:44px;font-weight:800;line-height:1}
 .msg{padding:10px 12px;border-radius:10px;margin:10px 0;font-weight:600}.msg.ok{background:var(--accbg);color:var(--acc)}.msg.no{background:var(--warnbg);color:var(--warn)}
-#qr{display:flex;justify-content:center;padding:12px;background:#fff;border-radius:10px;width:max-content;margin:8px auto}
+#qr,#qr2{display:flex;justify-content:center;padding:12px;background:#fff;border-radius:10px;width:max-content;margin:8px auto}
 .pay{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.pay input{width:84px}
 .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sum div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
 .sum b{display:block;font-size:20px}
@@ -47,11 +47,11 @@ textarea{width:100%;height:130px;font:13px monospace;background:var(--card);colo
 <script>
 const KEY='attendance-v2';
 const seed=()=>({role:'teacher',sid:'',date:'',bypass:true,
-cls:{id:'math-sat',name:'Saturday Math',fee:20,pts:10,days:[1,3],start:'20:00',end:'22:00',v2:1,mult:1,maxFree:10,rewards:[{id:'r1',name:'Free drink',cost:50},{id:'r2',name:'RM 5 off the class',cost:100},{id:'r3',name:'Guest pass for a friend',cost:150},{id:'r4',name:'Water bottle or towel',cost:200},{id:'r5',name:'1 free class',cost:400,free:1},{id:'r6',name:'Coach T-shirt or gloves',cost:600}]},
+cls:{id:'math-sat',name:'Saturday Math',fee:20,pts:10,days:[1,3],start:'20:00',end:'22:00',v2:1,mult:1,maxFree:10,rewards:[{id:'r1',name:'Free drink',cost:50,kind:'drink'},{id:'r2',name:'RM 5 off the class',cost:100,kind:'discount'},{id:'r3',name:'Guest pass for a friend',cost:150,kind:'guest'},{id:'r4',name:'Water bottle or towel',cost:200},{id:'r5',name:'1 free class',cost:400,free:1,kind:'free'},{id:'r6',name:'Coach T-shirt or gloves',cost:600}]},
 students:[['s1','Aisyah','0121000001'],['s2','Wei Jie','0121000002'],['s3','Priya','0121000003'],['s4','Daniel','0121000004'],['s5','Nurul','0121000005']].map(([id,name,phone])=>({id,name,phone})),
-checkins:[],pays:[],redeems:[],bonus:[]});
+checkins:[],pays:[],redeems:[],bonus:[],sales:[],stockLog:[],items:[{id:'water',name:'Water',price:2,stock:24,low:6},{id:'soda',name:'Soda',price:2,stock:24,low:6}]});
 let S;try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
-if(S.cls.start==='09:00')S.cls.start='20:00';S.cls.end=S.cls.end||'22:00';S.cls.lastIn=S.cls.lastIn||'21:30';S.redeems=S.redeems||[];S.bonus=S.bonus||[];if(!S.cls.v2){const z=seed().cls;S.cls.rewards=z.rewards;S.cls.days=z.days;S.cls.mult=1;S.cls.maxFree=10;S.cls.v2=1}if(new URLSearchParams(location.search).get('c'))S.role='student';
+if(S.cls.start==='09:00')S.cls.start='20:00';S.cls.end=S.cls.end||'22:00';S.cls.lastIn=S.cls.lastIn||'21:30';S.redeems=S.redeems||[];S.bonus=S.bonus||[];S.sales=S.sales||[];S.stockLog=S.stockLog||[];S.items=S.items||seed().items;S.cls.rewards.forEach(r=>{if(!r.kind)r.kind={r1:'drink',r2:'discount',r3:'guest',r5:'free'}[r.id]||'other'});if(!S.cls.v2){const z=seed().cls;S.cls.rewards=z.rewards;S.cls.days=z.days;S.cls.mult=1;S.cls.maxFree=10;S.cls.v2=1}const qp=new URLSearchParams(location.search);if(qp.get('c')||qp.get('shop'))S.role='student';
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const myDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).format(new Date());
 const myTime=()=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit'}).format(new Date());
@@ -59,7 +59,7 @@ const D=()=>S.date||myDate();
 const mins=t=>{const[a,b]=t.split(':');return +a*60+ +b};
 const nm=id=>S.students.find(s=>s.id===id).name;
 const cutoff=()=>{const d=new Date(myDate()+'T00:00:00');d.setDate(d.getDate()-183);return d.toISOString().slice(0,10)};
-const paidOn=(d,id)=>S.pays.some(p=>p.date===d&&p.sid===id);
+const paidOn=(d,id)=>S.pays.some(p=>p.date===d&&p.sid===id&&p.method!=='reward');
 const earned=id=>{const k=cutoff();return S.checkins.filter(c=>c.sid===id&&c.date>=k&&paidOn(c.date,id)).reduce((a,c)=>a+c.pts,0)+(S.bonus||[]).filter(b=>b.sid===id&&b.date>=k).reduce((a,b)=>a+b.pts,0)};
 const pts=id=>earned(id)-S.redeems.filter(r=>r.sid===id&&r.status!=='rejected').reduce((a,r)=>a+r.cost,0);
 const rm=n=>'RM '+(+n).toFixed(2).replace(/\.00$/,'');
@@ -73,7 +73,7 @@ function summary(d,c,here,dp){
   const dow=new Date(d+'T00:00:00').getDay()||7;
   return `<div class="card" style="border-color:var(--acc)" role="status"><div class="row"><b>Summary for ${d}</b><button class="b" onclick="showSum=false;render()">Dismiss</button></div>
   <div class="mute">${c.name}, ${t12(c.start)} to ${t12(c.end)}${c.days.includes(dow)?'':' (no class scheduled on this day)'}</div>
-  <ul style="margin:8px 0 0;padding-left:18px;line-height:1.7"><li>${here.length} of ${S.students.length} students checked in</li><li>Collected ${rm(total)}; ${owing.length} still to pay${owing.length&&owing.length<=5?' ('+owing.map(s=>s.name).join(', ')+')':''}</li><li>${fresh.length} new student${fresh.length===1?'':'s'} joined${fresh.length?' ('+fresh.map(s=>s.name).join(', ')+')':''}</li>${health.length?'<li style="color:var(--warn);font-weight:600">Health notes today: '+health.map(s=>s.name+' ('+esc(s.health)+')').join('; ')+'</li>':''}</ul></div>`;
+  <ul style="margin:8px 0 0;padding-left:18px;line-height:1.7"><li>${here.length} of ${S.students.length} students checked in</li>${S.items.filter(i=>i.stock<=i.low).length?'<li style="color:var(--warn);font-weight:600">Low stock: '+S.items.filter(i=>i.stock<=i.low).map(i=>i.name+' ('+i.stock+')').join(', ')+'</li>':''}<li>Collected ${rm(total)}; ${owing.length} still to pay${owing.length&&owing.length<=5?' ('+owing.map(s=>s.name).join(', ')+')':''}</li><li>${fresh.length} new student${fresh.length===1?'':'s'} joined${fresh.length?' ('+fresh.map(s=>s.name).join(', ')+')':''}</li>${health.length?'<li style="color:var(--warn);font-weight:600">Health notes today: '+health.map(s=>s.name+' ('+esc(s.health)+')').join('; ')+'</li>':''}</ul></div>`;
 }
 function resetAll(){if(confirm('Clear all demo data?')){S=seed();save();render()}}
 let flash=null;
@@ -126,17 +126,28 @@ function info(s){
 function logout(){S.sid='';flash=null;pending=null;save();render()}
 function payBar(id,d){
   if(!S.checkins.some(c=>c.date===d&&c.sid===id))return '';
-  const ps=S.pays.filter(p=>p.date===d&&p.sid===id),L={cash:'Cash',bank_in:'Bank-in',tng:'TNG'};
-  if(!ps.length)return `<div class="msg no" role="status">Payment pending (${d}): ${rm(S.cls.fee)}. Pay the coach by Cash, Bank-in or TNG to earn your points.</div>`;
+  const ps=S.pays.filter(p=>p.date===d&&p.sid===id),L={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free class reward'};
+  if(!ps.length)return `<div class="msg no" role="status">Payment pending (${d}): ${rm(feeFor(id,d))}${feeFor(id,d)<S.cls.fee?' after your RM 5 reward':''}. Pay the coach by Cash, Bank-in or TNG to earn your points.</div>`;
   return `<div class="msg ok" role="status">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} by ${ps.map(p=>L[p.method]).join(', ')} for ${d}.</div>`;
 }
 function redeem(rid){
   const r=S.cls.rewards.find(x=>x.id===rid);if(!r||pts(S.sid)<r.cost)return;
   if(S.redeems.some(x=>x.sid===S.sid&&x.date===D()&&x.status!=='rejected'))return alert('Only one reward can be redeemed per class day.');
   if(r.free&&new Set(S.pays.filter(p=>p.date===D()).map(p=>p.sid)).size>S.cls.maxFree)return alert('The free class is only available when the class has spare seats ('+S.cls.maxFree+' or fewer paying students today).');
-  S.redeems.push({id:'d'+Date.now(),sid:S.sid,name:r.name,cost:r.cost,status:'pending',date:D()});save();render()
+  S.redeems.push({id:'d'+Date.now(),sid:S.sid,name:r.name,cost:r.cost,status:'pending',date:D(),kind:r.kind||'other'});save();render()
 }
-function decide(id,ok){const r=S.redeems.find(x=>x.id===id);if(r){r.status=ok?'approved':'rejected';save();render()}}
+function decide(id,ok){
+  const r=S.redeems.find(x=>x.id===id);if(!r)return;
+  r.status=ok?'approved':'rejected';
+  if(ok){
+    const paid=S.pays.some(p=>p.date===r.date&&p.sid===r.sid);
+    if(r.kind==='free'){if(paid)alert('This student already paid for '+r.date+'. Please refund them manually.');else S.pays.push({date:r.date,sid:r.sid,amt:0,method:'reward'})}
+    if(r.kind==='discount'&&paid)alert('This student already paid for '+r.date+'. Please return RM 5 manually.');
+    if(r.kind==='drink'){const el=document.getElementById('rd'+id),it=S.items.find(i=>i.id===(el&&el.value))||S.items[0];if(it&&it.stock>0){it.stock--;S.sales.push({id:'x'+Date.now(),date:r.date,sid:r.sid,item:it.id,qty:1,amt:0,method:'reward'})}else alert('That drink is out of stock. Give the reward later.')}
+    if(r.kind==='guest'){r.code='GP'+(1000+Math.floor(Math.random()*9000));const x=new Date(r.date+'T00:00:00');x.setDate(x.getDate()+30);r.exp=x.toISOString().slice(0,10)}
+  }
+  save();render()
+}
 function rewardsView(id){
   const p=pts(id),R=S.cls.rewards,next=R.find(r=>r.cost>p);
   let h=`<details ${rwS?'open':''} ontoggle="rwS=this.open" style="margin-top:24px"><summary style="cursor:pointer;font-size:17px;font-weight:600">Rewards</summary><div class="card" style="margin-top:8px">`;
@@ -144,12 +155,12 @@ function rewardsView(id){
   h+='</div>'+R.map(r=>`<div class="card row"><span>${r.name}<br><span class="mute">${r.cost} points</span></span><button class="b p" ${p>=r.cost?'':'disabled'} onclick="redeem('${r.id}')">Redeem</button></div>`).join('');
   const bn=S.bonus.filter(b=>b.sid===id).slice(-3).reverse();if(bn.length)h+='<div class="mute" style="margin:6px 0">Bonus points</div>'+bn.map(b=>`<div class="card row"><span>${b.reason}</span><span class="tag">+${b.pts}</span></div>`).join('');
   const mine=S.redeems.filter(r=>r.sid===id).slice(-3).reverse();
-  if(mine.length)h+='<div class="mute" style="margin:6px 0">Your requests</div>'+mine.map(r=>`<div class="card row"><span>${r.name}</span><span class="tag ${r.status==='approved'?'':'w'}">${r.status==='pending'?'Waiting for coach':r.status==='approved'?'Approved':'Declined'}</span></div>`).join('');
+  if(mine.length)h+='<div class="mute" style="margin:6px 0">Your requests</div>'+mine.map(r=>`<div class="card row"><span>${r.name}${r.code?`<br><span class="mute">Code ${r.code}, valid until ${r.exp}${r.used?' (used)':''}</span>`:''}</span><span class="tag ${r.status==='approved'?'':'w'}">${r.status==='pending'?'Waiting for coach':r.status==='approved'?'Approved':'Declined'}</span></div>`).join('');
   return h+'</details>'
 }
 function reqView(){
-  const q=S.redeems.filter(r=>r.status==='pending');if(!q.length)return '';
-  return '<h2>Reward requests</h2>'+q.map(r=>`<div class="card"><div class="row"><span><b>${nm(r.sid)}</b> wants: ${r.name}<br><span class="mute">${r.cost} points</span></span><span><button class="b p" onclick="decide('${r.id}',true)">Approve</button> <button class="b" onclick="decide('${r.id}',false)">Decline</button></span></div></div>`).join('');
+  const q=S.redeems.filter(r=>r.status==='pending'),gp=S.redeems.filter(r=>r.kind==='guest'&&r.status==='approved'&&!r.used);const gv=gp.length?'<h2>Guest passes</h2>'+gp.map(r=>`<div class="card row"><span><b>${r.code}</b> from ${nm(r.sid)}<br><span class="mute">Valid until ${r.exp}</span></span><button class="b p" onclick="usePass('${r.id}')">Mark used</button></div>`).join(''):'';if(!q.length)return gv;
+  return gv+'<h2>Reward requests</h2>'+q.map(r=>`<div class="card"><div class="row"><span><b>${nm(r.sid)}</b> wants: ${r.name}<br><span class="mute">${r.cost} points</span>${r.kind==='drink'?`<br><select id="rd${r.id}" aria-label="Drink">${S.items.map(i=>`<option value="${i.id}">${i.name}</option>`).join('')}</select>`:''}</span><span><button class="b p" onclick="decide('${r.id}',true)">Approve</button> <button class="b" onclick="decide('${r.id}',false)">Decline</button></span></div></div>`).join('');
 }
 const REASONS=[['Referral (friend joined)',100],['Perfect month',30],['Grading passed',50],['Tournament or demo',30],['Review or tagged post',20],['Comeback after 3 weeks',20],['Birthday month',30],['Student of the month',30]];
 function bonusView(){
@@ -164,7 +175,7 @@ function giveBonus(){
 }
 function adminExtra(){
   const c=S.cls;
-  return `<details class="card" ${rwOpen?'open':''} ontoggle="rwOpen=this.open"><summary style="cursor:pointer;font-weight:600">Rewards (edit)</summary>${c.rewards.map((r,i)=>`<div class="pay"><input value="${r.name}" style="flex:1;width:auto" onchange="editR(${i},'name',this.value)" aria-label="Reward name"><input type="number" value="${r.cost}" onchange="editR(${i},'cost',this.value)" aria-label="Points cost"><button class="b" onclick="delR(${i})">Remove</button></div>`).join('')}<div class="pay"><button class="b" onclick="addR()">Add reward</button></div><div class="mute" style="margin-top:8px">Pricing tip: points = your cost in RM x 20.</div></details><div class="card"><div class="row"><span>Double points (slow periods)</span><input type="checkbox" ${c.mult===2?'checked':''} onchange="S.cls.mult=this.checked?2:1;save();render()" aria-label="Double points"></div><div class="row" style="margin-top:10px"><span>Free class only if paying students are at most</span><input type="number" value="${c.maxFree}" style="width:70px" onchange="S.cls.maxFree=+this.value||10;save()" aria-label="Seat limit"></div></div>`
+  return `<details class="card" ${rwOpen?'open':''} ontoggle="rwOpen=this.open"><summary style="cursor:pointer;font-weight:600">Rewards (edit)</summary>${c.rewards.map((r,i)=>`<div class="pay"><input value="${r.name}" style="flex:1;width:auto" onchange="editR(${i},'name',this.value)" aria-label="Reward name"><select onchange="editR(${i},'kind',this.value)" aria-label="Reward type">${[['drink','Free drink'],['discount','RM 5 off'],['free','Free class'],['guest','Guest pass'],['other','Other gift']].map(k=>`<option value="${k[0]}" ${r.kind===k[0]?'selected':''}>${k[1]}</option>`).join('')}</select><input type="number" value="${r.cost}" onchange="editR(${i},'cost',this.value)" aria-label="Points cost"><button class="b" onclick="delR(${i})">Remove</button></div>`).join('')}<div class="pay"><button class="b" onclick="addR()">Add reward</button></div><div class="mute" style="margin-top:8px">Pricing tip: points = your cost in RM x 20.</div></details><div class="card"><div class="row"><span>Double points (slow periods)</span><input type="checkbox" ${c.mult===2?'checked':''} onchange="S.cls.mult=this.checked?2:1;save();render()" aria-label="Double points"></div><div class="row" style="margin-top:10px"><span>Free class only if paying students are at most</span><input type="number" value="${c.maxFree}" style="width:70px" onchange="S.cls.maxFree=+this.value||10;save()" aria-label="Seat limit"></div></div>`
 }
 function editR(i,k,v){S.cls.rewards[i][k]=k==='cost'?(+v||0):v.replace(/[<>&"]/g,'').trim();save()}
 function delR(i){S.cls.rewards.splice(i,1);save();render()}
@@ -172,7 +183,46 @@ function addR(){S.cls.rewards.push({id:'r'+Date.now(),name:'New reward',cost:100
 function shrink(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=96;const x=c.getContext('2d'),m=Math.min(im.width,im.height);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,96,96);cb(c.toDataURL('image/jpeg',.8))};im.src=r.result};r.readAsDataURL(f)}
 function setPhoto(i){const f=i.files[0];if(f)shrink(f,p=>{S.students.find(s=>s.id===S.sid).photo=p;save();render()})}
 const av=(s,z)=>s.photo?`<img src="${s.photo}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover">`:`<span style="width:${z}px;height:${z}px;border-radius:50%;background:var(--accbg);color:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none">${(s.name||'?')[0]}</span>`;
-let rwOpen=false,rwS=true;
+const MLBL={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free reward'};
+const feeFor=(sid,d)=>Math.max(0,S.cls.fee-(S.redeems.some(r=>r.sid===sid&&r.date===d&&r.status==='approved'&&r.kind==='discount')?5:0));
+function usePass(id){const r=S.redeems.find(x=>x.id===id);if(!r)return;r.friend=(prompt("Friend's name?")||'').replace(/[<>&"]/g,'').trim();r.used=true;save();render()}
+function settleDrinks(sid){const m=document.getElementById('od'+sid).value;S.sales.filter(x=>x.sid===sid&&!x.method).forEach(x=>x.method=m);save();render()}
+function outView(){
+  const rows=S.students.map(s=>{
+    const cl=S.checkins.filter(c=>c.sid===s.id&&!S.pays.some(p=>p.date===c.date&&p.sid===s.id));
+    const cf=cl.reduce((a,c)=>a+feeFor(s.id,c.date),0),dr=S.sales.filter(x=>x.sid===s.id&&!x.method).reduce((a,x)=>a+x.amt,0);
+    return {s,n:cl.length,cf,dr,t:cf+dr}}).filter(r=>r.t>0);
+  if(!rows.length)return '<h2>Outstanding</h2><div class="card mute">Nothing outstanding.</div>';
+  return `<h2>Outstanding: ${rm(rows.reduce((a,r)=>a+r.t,0))}</h2>`+rows.map(r=>`<div class="card"><div class="row"><b>${r.s.name}</b><b>${rm(r.t)}</b></div><div class="mute">Class fees ${rm(r.cf)}${r.n?' ('+r.n+(r.n>1?' classes':' class')+')':''}, drinks ${rm(r.dr)}</div>${r.dr?`<div class="pay"><select id="od${r.s.id}" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="b p" onclick="settleDrinks('${r.s.id}')">Drinks paid</button></div>`:''}</div>`).join('');
+}
+let shopOpen=new URLSearchParams(location.search).get('shop')==='1',stOpen=false,rwOpen=false,rwS=true;
+let shopMsg='';
+function buy(id){
+  const it=S.items.find(x=>x.id===id),q=+document.getElementById('q_'+id).value;
+  if(!it||it.stock<q){shopMsg='Not enough stock left.';return render()}
+  S.sales.push({id:'x'+Date.now(),date:D(),sid:S.sid,item:id,qty:q,amt:q*it.price,method:''});it.stock-=q;shopMsg='Added '+q+' x '+it.name+' ('+rm(q*it.price)+'). Please pay the coach.';save();render()
+}
+function shopView(me){
+  const mine=S.sales.filter(x=>x.date===D()&&x.sid===me);
+  let h=`<details ${shopOpen?'open':''} ontoggle="shopOpen=this.open" style="margin-top:24px"><summary style="cursor:pointer;font-size:17px;font-weight:600">Buy drinks</summary><div style="margin-top:8px"></div>${shopMsg?`<div class="msg ok" role="status">${shopMsg}</div>`:''}`;
+  h+=S.items.map(i=>`<div class="card row"><span>${i.name}<br><span class="mute">${rm(i.price)} each${i.stock<=0?', sold out':''}</span></span><span><select id="q_${i.id}" aria-label="Quantity">${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join('')}</select> <button class="b p" ${i.stock>0?'':'disabled'} onclick="buy('${i.id}')">Buy</button></span></div>`).join('');
+  h+=mine.map(x=>{const it=S.items.find(i=>i.id===x.item);return `<div class="card row"><span>${x.qty} x ${it?it.name:'Item'}</span><span class="tag ${x.method?'':'w'}">${x.method?'Paid '+rm(x.amt)+' by '+MLBL[x.method]:'Pay coach '+rm(x.amt)}</span></div>`}).join('');
+  const owe=S.sales.filter(x=>x.sid===me&&!x.method).reduce((a,x)=>a+x.amt,0);
+  if(owe)h+=`<div class="msg no">Drinks to pay: ${rm(owe)}</div>`;
+  return h+'</details>'
+}
+function sale(id,m){const x=S.sales.find(s=>s.id===id);if(x){x.method=m;save();render()}}
+function delSale(id){const x=S.sales.find(s=>s.id===id);if(!x)return;const it=S.items.find(i=>i.id===x.item);if(it)it.stock+=x.qty;S.sales=S.sales.filter(s=>s.id!==id);save();render()}
+function restock(id){const q=+document.getElementById('rs'+id).value;if(!(q>0))return alert('Enter a quantity.');S.items.find(i=>i.id===id).stock+=q;S.stockLog.push({date:D(),item:id,type:'restock',qty:q});save();render()}
+function countStock(id){const v=document.getElementById('ct'+id).value;if(v==='')return alert('Enter the remaining count.');const it=S.items.find(i=>i.id===id),c=+v;S.stockLog.push({date:D(),item:id,type:'count',counted:c,expected:it.stock});it.stock=c;save();render()}
+function addItem(){const n=(prompt('Item name?')||'').replace(/[<>&"]/g,'').trim();if(!n)return;const p=+prompt('Price in RM?','2');if(!(p>0))return;S.items.push({id:'i'+Date.now(),name:n,price:p,stock:0,low:5});save();render()}
+function shopAdmin(){
+  const d=D(),sl=S.sales.filter(x=>x.date===d),tot=sl.reduce((a,x)=>a+x.amt,0),paid=sl.filter(x=>x.method).reduce((a,x)=>a+x.amt,0);
+  let h=`<h2>Drink shop</h2><div class="sum"><div><span class="mute">Sold</span><b>${rm(tot)}</b></div><div><span class="mute">Paid</span><b>${rm(paid)}</b></div><div><span class="mute">Unpaid</span><b>${rm(tot-paid)}</b></div></div><div style="margin-top:8px"></div>`;
+  h+=sl.map(x=>{const it=S.items.find(i=>i.id===x.item)||{name:'Item'};return `<div class="card row"><span>${nm(x.sid)}: ${x.qty} x ${it.name} (${rm(x.amt)})</span>`+(x.method?`<span><span class="tag">${MLBL[x.method]}</span> <button class="b" onclick="sale('${x.id}','')">Unpay</button></span>`:`<span><select id="sm${x.id}" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select> <button class="b p" onclick="sale('${x.id}',document.getElementById('sm${x.id}').value)">Paid</button> <button class="b" onclick="delSale('${x.id}')">Remove</button></span>`)+`</div>`}).join('');
+  h+=`<details class="card" ${stOpen?'open':''} ontoggle="stOpen=this.open"><summary style="cursor:pointer;font-weight:600">Stock levels</summary>`+S.items.map(i=>{const lg=[...S.stockLog].reverse().find(l=>l.item===i.id&&l.type==='count');return `<div style="margin-top:12px"><div class="row"><b>${i.name}</b><span class="tag ${i.stock<=i.low?'w':''}">${i.stock} left${i.stock<=i.low?', low':''}</span></div><div class="pay"><input id="rs${i.id}" type="number" min="1" placeholder="Add" aria-label="Add stock"><button class="b" onclick="restock('${i.id}')">Add stock</button><input id="ct${i.id}" type="number" min="0" placeholder="Counted" aria-label="Remaining count"><button class="b" onclick="countStock('${i.id}')">Save count</button></div>${lg?`<div class="mute">Last count ${lg.date}: ${lg.counted} counted, system had ${lg.expected}${lg.counted<lg.expected?' (short '+(lg.expected-lg.counted)+', '+rm((lg.expected-lg.counted)*i.price)+')':''}</div>`:''}</div>`}).join('')+`<div class="pay"><button class="b" onclick="addItem()">Add item</button></div></details>`;
+  return h
+}
 function loginView(){
   let h=`<div class="card"><b>${S.cls.name}</b><div class="mute">Enter your phone number to check in. New here? We will ask for your name once.</div>`;
   if(!pending)h+=`<div class="pay"><input id="ph" type="tel" inputmode="tel" placeholder="e.g. 0123456789" style="flex:1;width:auto" aria-label="Phone number"><button class="b p" onclick="login()">Continue</button></div>`;
@@ -184,7 +234,7 @@ function mark(sid){checkIn(sid,true);render()}
 function undo(sid){const d=D();S.checkins=S.checkins.filter(x=>!(x.date===d&&x.sid===sid));S.pays=S.pays.filter(p=>!(p.date===d&&p.sid===sid));save();render()}
 function pay(sid){
   const a=+document.getElementById('a'+sid).value,m=document.getElementById('m'+sid).value;
-  if(!(a>0))return alert('Enter an amount.');
+  if(!(a>0)&&m!=='reward')return alert('Enter an amount.');
   S.pays.push({date:D(),sid,amt:a,method:m});save();render()
 }
 function unpay(sid){S.pays=S.pays.filter(p=>!(p.date===D()&&p.sid===sid));save();render()}
@@ -200,7 +250,7 @@ function teacher(){
   const owing=here.filter(s=>!dp.some(p=>p.sid===s.id)).length;
   let h=summary(d,c,here,dp)+`<div class="card"><div class="row"><div><b>${c.name}</b><div class="mute">${t12(c.start)} to ${t12(c.end)} · Fee ${rm(c.fee)} per class · ${c.pts} points per check-in</div></div></div>
   <div id="qr"></div><div class="mute" style="text-align:center">One fixed QR for every class. Print it once and put it on the wall. Scanning it opens the student check-in page.</div></div>
-  <h2>Collected on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
+  <div class="card"><b>Drink shop QR</b><div id="qr2"></div><div class="mute" style="text-align:center">Put this at the drink table. Students scan it, log in, choose water or soda and tap Buy.</div></div><h2>Collected on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
   <div class="mute" style="margin-top:6px">Total ${rm(dp.reduce((a,p)=>a+p.amt,0))} · ${owing} still to pay · ${here.length} of ${S.students.length} present</div>
   ${reqView()}<h2>Attendance</h2>`;
   S.students.forEach(s=>{
@@ -209,12 +259,12 @@ function teacher(){
     if(!ci)h+=`<span><span class="tag w">Absent</span> <button class="b" onclick="mark('${s.id}')">Mark present</button></span></div>`;
     else{
       h+=`<span><span class="tag">${ci.manual?'Present (manual)':'Checked in'}</span> <button class="b" onclick="undo('${s.id}')">Undo</button></span></div>`;
-      if(ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} · ${ps.map(p=>({cash:'Cash',bank_in:'Bank-in',tng:'TNG'})[p.method]).join(', ')}</span><button class="b" onclick="unpay('${s.id}')">Remove payment</button></div>`;
-      else h+=`<div class="pay"><input id="a${s.id}" type="number" min="0" step="0.5" value="${c.fee}" aria-label="Amount"><select id="m${s.id}" aria-label="Payment method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="b p" onclick="pay('${s.id}')">Record payment</button></div>`;
+      if(ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} · ${ps.map(p=>({cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free'})[p.method]).join(', ')}</span><button class="b" onclick="unpay('${s.id}')">Remove payment</button></div>`;
+      else h+=`${feeFor(s.id,d)<c.fee?'<div class="mute">Reward applied: RM 5 off</div>':''}<div class="pay"><input id="a${s.id}" type="number" min="0" step="0.5" value="${feeFor(s.id,d)}" aria-label="Amount"><select id="m${s.id}" aria-label="Payment method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option><option value="reward">Free (guest pass)</option></select><button class="b p" onclick="pay('${s.id}')">Record payment</button></div>`;
     }
     h+=info(s)+'</div>';
   });
-  h+=bonusView()+`<h2>Admin settings</h2>${adminExtra()}<div class="card"><div class="row" style="margin-bottom:10px"><span>Class name</span><input value="${c.name}" onchange="S.cls.name=this.value.replace(/[<>&&quot;]/g,'').trim()||S.cls.name;save();render()" aria-label="Class name"></div><div class="row"><span>Class logo</span><span><input type="file" id="lf" accept="image/*" onchange="setLogo(this)" aria-label="Upload logo">${S.logo?' <button class="b" onclick="S.logo=\'\';save();render()">Remove</button>':''}</span></div></div><button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
+  h+=outView()+shopAdmin()+bonusView()+`<h2>Admin settings</h2>${adminExtra()}<div class="card"><div class="row" style="margin-bottom:10px"><span>Class name</span><input value="${c.name}" onchange="S.cls.name=this.value.replace(/[<>&&quot;]/g,'').trim()||S.cls.name;save();render()" aria-label="Class name"></div><div class="row"><span>Class logo</span><span><input type="file" id="lf" accept="image/*" onchange="setLogo(this)" aria-label="Upload logo">${S.logo?' <button class="b" onclick="S.logo=\'\';save();render()">Remove</button>':''}</span></div></div><button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
   return h;
 }
 function student(){
@@ -226,7 +276,7 @@ function student(){
   <div class="card"><b>${S.cls.name}</b><div class="mute">After scanning the class QR with your phone camera, tap Check in to record your attendance.</div>
   <button class="b p" style="margin-top:10px;width:100%;padding:14px" onclick="scan()">Check in</button>
   ${flash?`<div class="msg ${flash.ok?'ok':'no'}">${flash.t}</div>`:''}</div>
-  ${rewardsView(me)}<h2>Leaderboard</h2>`;
+  ${rewardsView(me)}${shopView(me)}<h2>Leaderboard</h2>`;
   board.forEach((b,i)=>h+=`<div class="card row" ${b.id===me?'style="border-color:var(--acc)"':''}><span>${i+1}. ${b.n}</span><b>${b.p} pts</b></div>`);
   h+='<h2>My attendance</h2>';
   h+=mine.length?mine.map(c=>{const ps=S.pays.filter(p=>p.date===c.date&&p.sid===me);return `<div class="card row"><span>${c.date}</span><span>${ps.length?`<span class="tag">+${c.pts} pts</span> `:''}${ps.length?'<span class="tag">Paid</span>':'<span class="tag w">Pending</span>'}</span></div>`}).join(''):'<div class="mute">No check-ins yet. Scan the QR at your next class.</div>';
@@ -240,7 +290,7 @@ function render(){
   document.getElementById('dd').value=S.date||'';document.getElementById('dd').placeholder=myDate();
   document.getElementById('byp').checked=S.bypass;
   document.getElementById('app').innerHTML=S.role==='teacher'?teacher():student();
-  if(S.role==='teacher'){const q=document.getElementById('qr');try{new QRCode(q,{text:location.href.split('?')[0].split('#')[0]+'?c='+S.cls.id,width:150,height:150})}catch(e){q.textContent='QR'}}
+  if(S.role==='teacher'){const q=document.getElementById('qr');try{new QRCode(q,{text:location.href.split('?')[0].split('#')[0]+'?c='+S.cls.id,width:150,height:150})}catch(e){q.textContent='QR'}try{new QRCode(document.getElementById('qr2'),{text:location.href.split('?')[0].split('#')[0]+'?shop=1',width:150,height:150})}catch(e){}}
 }
 render();
 </script></body></html>
