@@ -190,6 +190,17 @@ function setPhoto(i){const f=i.files[0];if(f)shrink(f,p=>{S.students.find(s=>s.i
 const av=(s,z)=>s.photo?`<img src="${s.photo}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover">`:`<span style="width:${z}px;height:${z}px;border-radius:50%;background:var(--accbg);color:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none">${(s.name||'?')[0]}</span>`;
 const MLBL={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free reward'};
 const hasSub=(sid,d)=>S.subs.some(x=>x.sid===sid&&x.month===d.slice(0,7));
+function collect(f){
+  const t={cash:0,bank_in:0,tng:0},c={fees:0,plans:0,drinks:0};
+  S.pays.filter(p=>f(p.date)&&t[p.method]!==undefined).forEach(p=>{t[p.method]+=p.amt;c.fees+=p.amt});
+  S.subs.filter(x=>f(x.date)&&t[x.method]!==undefined).forEach(x=>{t[x.method]+=x.amt;c.plans+=x.amt});
+  S.sales.filter(x=>x.method&&t[x.method]!==undefined&&f(x.paid||x.date)).forEach(x=>{t[x.method]+=x.amt;c.drinks+=x.amt});
+  return {t,c,tot:c.fees+c.plans+c.drinks}
+}
+function collectView(d){
+  const card=(title,r)=>`<div class="card"><div class="row"><b>${title}</b><b>${rm(r.tot)}</b></div><div class="mute">Class fees ${rm(r.c.fees)}, monthly plans ${rm(r.c.plans)}, drinks ${rm(r.c.drinks)}</div><div class="mute">Cash ${rm(r.t.cash)}, Bank-in ${rm(r.t.bank_in)}, TNG ${rm(r.t.tng)}</div></div>`;
+  return '<h2>Collection</h2>'+card('Daily collection ('+d+')',collect(x=>x===d))+card('This month ('+d.slice(0,7)+')',collect(x=>x.slice(0,7)===d.slice(0,7)))+card('Total collection (all time)',collect(()=>true));
+}
 const capped=(id,c)=>hasSub(id,c.date)&&S.checkins.filter(x=>x.sid===id&&x.date.slice(0,7)===c.date.slice(0,7)&&x.date<=c.date).reduce((a,x)=>a+x.pts,0)>(S.cls.planCap||60);
 const monthClasses=m=>{const[y,mo]=m.split('-').map(Number);let n=0;for(let d=new Date(y,mo-1,1);d.getMonth()===mo-1;d.setDate(d.getDate()+1))if(S.cls.days.includes(d.getDay()||7))n++;return n};
 function subAdmin(){
@@ -200,7 +211,7 @@ function addSub(){const v=i=>document.getElementById(i).value,sid=v('ss'),a=+v('
 function delSub(id){S.subs=S.subs.filter(x=>x.id!==id);save();render()}
 const feeFor=(sid,d)=>Math.max(0,S.cls.fee-(S.redeems.some(r=>r.sid===sid&&r.date===d&&r.status==='approved'&&r.kind==='discount')?5:0));
 function usePass(id){const r=S.redeems.find(x=>x.id===id);if(!r)return;r.friend=(prompt("Friend's name?")||'').replace(/[<>&"]/g,'').trim();r.used=true;save();render()}
-function settleDrinks(sid){const m=document.getElementById('od'+sid).value;S.sales.filter(x=>x.sid===sid&&!x.method).forEach(x=>x.method=m);save();render()}
+function settleDrinks(sid){const m=document.getElementById('od'+sid).value;S.sales.filter(x=>x.sid===sid&&!x.method).forEach(x=>{x.method=m;x.paid=D()});save();render()}
 function outView(){
   const rows=S.students.map(s=>{
     const cl=S.checkins.filter(c=>c.sid===s.id&&!S.pays.some(p=>p.date===c.date&&p.sid===s.id)&&!hasSub(s.id,c.date));
@@ -225,7 +236,7 @@ function shopView(me){
   if(owe)h+=`<div class="msg no">Drinks to pay: ${rm(owe)}</div>`;
   return h+'</details>'
 }
-function sale(id,m){const x=S.sales.find(s=>s.id===id);if(x){x.method=m;save();render()}}
+function sale(id,m){const x=S.sales.find(s=>s.id===id);if(x){x.method=m;x.paid=m?D():'';save();render()}}
 function delSale(id){const x=S.sales.find(s=>s.id===id);if(!x)return;const it=S.items.find(i=>i.id===x.item);if(it)it.stock+=x.qty;S.sales=S.sales.filter(s=>s.id!==id);save();render()}
 function restock(id){const q=+document.getElementById('rs'+id).value;if(!(q>0))return alert('Enter a quantity.');S.items.find(i=>i.id===id).stock+=q;S.stockLog.push({date:D(),item:id,type:'restock',qty:q});save();render()}
 function countStock(id){const v=document.getElementById('ct'+id).value;if(v==='')return alert('Enter the remaining count.');const it=S.items.find(i=>i.id===id),c=+v;S.stockLog.push({date:D(),item:id,type:'count',counted:c,expected:it.stock});it.stock=c;save();render()}
@@ -264,7 +275,7 @@ function teacher(){
   const owing=here.filter(s=>!dp.some(p=>p.sid===s.id)&&!hasSub(s.id,d)).length;
   let h=summary(d,c,here,dp)+`<div class="card"><div class="row"><div><b>${c.name}</b><div class="mute">${t12(c.start)} to ${t12(c.end)} · Fee ${rm(c.fee)} per class · ${c.pts} points per check-in</div></div></div>
   <div id="qr"></div><div class="mute" style="text-align:center">One fixed QR for every class. Print it once and put it on the wall. Scanning it opens the student check-in page.</div></div>
-  <div class="card"><b>Drink shop QR</b><div id="qr2"></div><div class="mute" style="text-align:center">Put this at the drink table. Students scan it, log in, choose water or soda and tap Buy.</div></div><h2>Collected on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
+  <div class="card"><b>Drink shop QR</b><div id="qr2"></div><div class="mute" style="text-align:center">Put this at the drink table. Students scan it, log in, choose water or soda and tap Buy.</div></div>${collectView(d)}<h2>Class fee payments on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
   <div class="mute" style="margin-top:6px">Total ${rm(dp.reduce((a,p)=>a+p.amt,0)+S.subs.filter(x=>x.date===d).reduce((a,x)=>a+x.amt,0))} · ${owing} still to pay · ${here.length} of ${S.students.length} present</div>
   ${reqView()}<h2>Attendance</h2>`;
   S.students.forEach(s=>{
