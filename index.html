@@ -36,7 +36,7 @@ textarea{width:100%;height:130px;font:13px monospace;background:var(--card);colo
 .f{display:grid;gap:8px;margin-top:10px}.f label{font-size:14px;color:var(--mute);display:grid;gap:3px}.f input,.f textarea{width:100%}.f textarea{height:70px;font:inherit;padding:8px 12px}.f .ck{display:flex;gap:8px;align-items:flex-start}.f .ck input{width:auto;margin-top:4px}
 .demo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--mute);border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-bottom:12px}
 </style></head><body><main>
-<div class="top"><h1 id="cname">Class Attendance</h1>
+<div class="top"><div class="row" style="justify-content:flex-start"><img id="logo" alt="Logo" style="display:none;height:36px;width:36px;border-radius:8px;object-fit:cover"><h1 id="cname">Class Attendance</h1></div>
 <div class="tabs"><button id="tT" onclick="setRole('teacher')">Teacher</button><button id="tS" onclick="setRole('student')">Student</button></div></div>
 <div class="demo"><span>Demo:</span><label>Date <input type="date" id="dd" onchange="S.date=this.value;save();render()"></label>
 <label><input type="checkbox" id="byp" onchange="S.bypass=this.checked;save();render()"> ignore class time</label>
@@ -45,10 +45,11 @@ textarea{width:100%;height:130px;font:13px monospace;background:var(--card);colo
 <script>
 const KEY='attendance-v2';
 const seed=()=>({role:'teacher',sid:'',date:'',bypass:true,
-cls:{id:'math-sat',name:'Saturday Math',fee:20,pts:10,days:[1,2,3,4,5,6,7],start:'09:00'},
+cls:{id:'math-sat',name:'Saturday Math',fee:20,pts:10,days:[1,2,3,4,5,6,7],start:'20:00',end:'22:00'},
 students:[['s1','Aisyah','0121000001'],['s2','Wei Jie','0121000002'],['s3','Priya','0121000003'],['s4','Daniel','0121000004'],['s5','Nurul','0121000005']].map(([id,name,phone])=>({id,name,phone})),
 checkins:[],pays:[]});
 let S;try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
+if(S.cls.start==='09:00')S.cls.start='20:00';S.cls.end=S.cls.end||'22:00';S.cls.lastIn=S.cls.lastIn||'21:30';
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const myDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).format(new Date());
 const myTime=()=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit'}).format(new Date());
@@ -57,14 +58,25 @@ const mins=t=>{const[a,b]=t.split(':');return +a*60+ +b};
 const nm=id=>S.students.find(s=>s.id===id).name;
 const pts=id=>S.checkins.filter(c=>c.sid===id).reduce((a,c)=>a+c.pts,0);
 const rm=n=>'RM '+(+n).toFixed(2).replace(/\.00$/,'');
-function setRole(r){S.role=r;save();render()}
+let showSum=S.role==='teacher';
+function setRole(r){S.role=r;if(r==='teacher')showSum=true;save();render()}
+const t12=t=>{let[h,m]=t.split(':').map(Number);const a=h>=12?'pm':'am';h=h%12||12;return h+(m?':'+String(m).padStart(2,'0'):'')+a};
+function setLogo(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=96;const x=c.getContext('2d'),m=Math.min(im.width,im.height);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,96,96);S.logo=c.toDataURL('image/png');save();render()};im.src=r.result};r.readAsDataURL(f)}
+function summary(d,c,here,dp){
+  if(!showSum)return '';
+  const total=dp.reduce((a,p)=>a+p.amt,0),owing=here.filter(s=>!dp.some(p=>p.sid===s.id)),fresh=S.students.filter(s=>s.joined===d),health=here.filter(s=>s.health);
+  const dow=new Date(d+'T00:00:00').getDay()||7;
+  return `<div class="card" style="border-color:var(--acc)" role="status"><div class="row"><b>Summary for ${d}</b><button class="b" onclick="showSum=false;render()">Dismiss</button></div>
+  <div class="mute">${c.name}, ${t12(c.start)} to ${t12(c.end)}${c.days.includes(dow)?'':' (no class scheduled on this day)'}</div>
+  <ul style="margin:8px 0 0;padding-left:18px;line-height:1.7"><li>${here.length} of ${S.students.length} students checked in</li><li>Collected ${rm(total)}; ${owing.length} still to pay${owing.length&&owing.length<=5?' ('+owing.map(s=>s.name).join(', ')+')':''}</li><li>${fresh.length} new student${fresh.length===1?'':'s'} joined${fresh.length?' ('+fresh.map(s=>s.name).join(', ')+')':''}</li>${health.length?'<li style="color:var(--warn);font-weight:600">Health notes today: '+health.map(s=>s.name+' ('+esc(s.health)+')').join('; ')+'</li>':''}</ul></div>`;
+}
 function resetAll(){if(confirm('Clear all demo data?')){S=seed();save();render()}}
 let flash=null;
 function checkIn(sid,manual){
   const c=S.cls,d=D(),dow=new Date(d+'T00:00:00').getDay()||7;
   if(!manual){
     if(!c.days.includes(dow))return {ok:0,t:'No class today.'};
-    if(!S.bypass&&!S.date){const n=mins(myTime()),s=mins(c.start);if(n<s-15||n>s+30)return {ok:0,t:'Check-in is only open 15 min before to 30 min after the class starts.'}}
+    if(!S.bypass&&!S.date){const n=mins(myTime()),s=mins(c.start);const L=mins(c.lastIn||'21:30');if(n<s-15||n>L)return {ok:0,t:'Check-in is open from 15 minutes before the class until '+t12(c.lastIn||'21:30')+'.'}}
   }
   if(S.checkins.some(x=>x.date===d&&x.sid===sid))return {ok:0,t:'Already checked in for '+d+'.'};
   S.checkins.push({date:d,sid,pts:c.pts,manual:!!manual,at:new Date().toISOString()});save();
@@ -98,12 +110,12 @@ function join(){
   if(S.students.some(s=>s.phone===d.phone))return alert('This contact number is already registered.');
   if(!document.getElementById('rk').checked)return alert('Please tick the consent box.');
   const id='s'+Date.now();
-  S.students.push({id,name:esc(d.first+' '+d.last),...d});S.sid=id;pending=null;
+  S.students.push({id,name:esc(d.first+' '+d.last),joined:D(),...d});S.sid=id;pending=null;
   flash=checkIn(id);save();render()
 }
 function info(s){
-  if(!s.email)return '';
-  return `<details style="margin-top:8px"><summary class="mute" style="cursor:pointer">Student details</summary><div class="mute" style="margin-top:6px;line-height:1.7">Email: ${esc(s.email)}<br>Address: ${esc(s.address)}<br>Emergency: ${esc(s.ecName)}, ${esc(s.ecPhone)}<br>Health: ${s.health?'<b style="color:var(--warn)">'+esc(s.health)+'</b>':'None declared'}</div></details>`;
+  
+  return `<details style="margin-top:8px"><summary class="mute" style="cursor:pointer">Contact, emergency and health details</summary><div class="mute" style="margin-top:6px;line-height:1.7">Contact: <a href="tel:${esc(s.phone)}">${esc(s.phone)}</a><br>Email: ${esc(s.email)||'Not provided'}<br>Address: ${esc(s.address)||'Not provided'}<br>Emergency: ${s.ecName?esc(s.ecName)+', <a href="tel:'+esc(s.ecPhone)+'">'+esc(s.ecPhone)+'</a>':'Not provided'}<br>Health: ${s.health?'<b style="color:var(--warn)">'+esc(s.health)+'</b>':'None declared'}</div></details>`;
 }
 function logout(){S.sid='';flash=null;pending=null;save();render()}
 function loginView(){
@@ -131,7 +143,7 @@ function teacher(){
   const d=D(),c=S.cls,here=S.students.filter(s=>S.checkins.some(x=>x.date===d&&x.sid===s.id));
   const dp=S.pays.filter(p=>p.date===d),tot=m=>dp.filter(p=>p.method===m).reduce((a,p)=>a+p.amt,0);
   const owing=here.filter(s=>!dp.some(p=>p.sid===s.id)).length;
-  let h=`<div class="card"><div class="row"><div><b>${c.name}</b><div class="mute">Fee ${rm(c.fee)} per class · ${c.pts} points per check-in</div></div></div>
+  let h=summary(d,c,here,dp)+`<div class="card"><div class="row"><div><b>${c.name}</b><div class="mute">${t12(c.start)} to ${t12(c.end)} · Fee ${rm(c.fee)} per class · ${c.pts} points per check-in</div></div></div>
   <div id="qr"></div><div class="mute" style="text-align:center">One fixed QR for every class. Print it once and put it on the wall.<br>yourapp.com/c/${c.id}</div></div>
   <h2>Collected on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
   <div class="mute" style="margin-top:6px">Total ${rm(dp.reduce((a,p)=>a+p.amt,0))} · ${owing} still to pay · ${here.length} of ${S.students.length} present</div>
@@ -147,7 +159,7 @@ function teacher(){
     }
     h+=info(s)+'</div>';
   });
-  h+=`<button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
+  h+=`<h2>Admin settings</h2><div class="card"><div class="row"><span>Class logo</span><span><input type="file" id="lf" accept="image/*" onchange="setLogo(this)" aria-label="Upload logo">${S.logo?' <button class="b" onclick="S.logo=\'\';save();render()">Remove</button>':''}</span></div></div><button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
   return h;
 }
 function student(){
@@ -167,6 +179,7 @@ function student(){
 }
 function render(){
   document.getElementById('cname').textContent=S.cls.name;
+  const lg=document.getElementById('logo');if(S.logo)lg.src=S.logo;lg.style.display=S.logo?'block':'none';
   document.getElementById('tT').className=S.role==='teacher'?'on':'';
   document.getElementById('tS').className=S.role==='student'?'on':'';
   document.getElementById('dd').value=S.date||'';document.getElementById('dd').placeholder=myDate();
