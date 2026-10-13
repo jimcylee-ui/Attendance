@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Class Attendance</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#f4f6f3;--card:#fff;--ink:#17262b;--mute:#66767b;--line:#dde3df;--acc:#12715b;--accbg:#dff2ea;--warn:#a85d00;--warnbg:#fdecd2;--bad:#b3261e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181b;--card:#182327;--ink:#e8efec;--mute:#93a4a8;--line:#2a393d;--acc:#4cc9a3;--accbg:#183a31;--warn:#f0b25c;--warnbg:#3a2c12;--bad:#ff8a80}}
+:root[data-theme="dark"]{--bg:#10181b;--card:#182327;--ink:#e8efec;--mute:#93a4a8;--line:#2a393d;--acc:#4cc9a3;--accbg:#183a31;--warn:#f0b25c;--warnbg:#3a2c12;--bad:#ff8a80}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 'Bricolage Grotesque',system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px 16px 48px}
+h1{font-size:22px;font-weight:800;margin:0}h2{font-size:17px;margin:24px 0 8px;font-weight:600}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+.tabs{display:flex;background:var(--line);border-radius:10px;padding:3px}
+.tabs button{border:0;background:none;color:var(--mute);padding:7px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.mute{color:var(--mute);font-size:14px}
+button.b,select,input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+button.b{cursor:pointer;font-weight:600}button.p{background:var(--acc);border-color:var(--acc);color:#fff}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) button.p{color:#06231b}}
+button.b:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.tag{font-size:13px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--accbg);color:var(--acc)}
+.tag.w{background:var(--warnbg);color:var(--warn)}
+.big{font-size:44px;font-weight:800;line-height:1}
+.msg{padding:10px 12px;border-radius:10px;margin:10px 0;font-weight:600}.msg.ok{background:var(--accbg);color:var(--acc)}.msg.no{background:var(--warnbg);color:var(--warn)}
+#qr{display:flex;justify-content:center;padding:12px;background:#fff;border-radius:10px;width:max-content;margin:8px auto}
+.pay{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.pay input{width:84px}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sum div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.sum b{display:block;font-size:20px}
+textarea{width:100%;height:130px;font:13px monospace;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px}
+.demo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--mute);border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-bottom:12px}
+</style></head><body><main>
+<div class="top"><h1 id="cname">Class Attendance</h1>
+<div class="tabs"><button id="tT" onclick="setRole('teacher')">Teacher</button><button id="tS" onclick="setRole('student')">Student</button></div></div>
+<div class="demo"><span>Demo:</span><label>Date <input type="date" id="dd" onchange="S.date=this.value;save();render()"></label>
+<label><input type="checkbox" id="byp" onchange="S.bypass=this.checked;save();render()"> ignore class time</label>
+<button class="b" onclick="resetAll()">Reset data</button></div>
+<div id="app"></div></main>
+<script>
+const KEY='attendance-v1';
+const seed=()=>({role:'teacher',sid:'s1',date:'',bypass:true,
+cls:{id:'math-sat',name:'Saturday Math',fee:50,pts:10,days:[1,2,3,4,5,6,7],start:'09:00'},
+students:[['s1','Aisyah'],['s2','Wei Jie'],['s3','Priya'],['s4','Daniel'],['s5','Nurul']].map(([id,name])=>({id,name})),
+checkins:[],pays:[]});
+let S;try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const myDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).format(new Date());
+const myTime=()=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit'}).format(new Date());
+const D=()=>S.date||myDate();
+const mins=t=>{const[a,b]=t.split(':');return +a*60+ +b};
+const nm=id=>S.students.find(s=>s.id===id).name;
+const pts=id=>S.checkins.filter(c=>c.sid===id).reduce((a,c)=>a+c.pts,0);
+const rm=n=>'RM '+(+n).toFixed(2).replace(/\.00$/,'');
+function setRole(r){S.role=r;save();render()}
+function resetAll(){if(confirm('Clear all demo data?')){S=seed();save();render()}}
+let flash=null;
+function checkIn(sid,manual){
+  const c=S.cls,d=D(),dow=new Date(d+'T00:00:00').getDay()||7;
+  if(!manual){
+    if(!c.days.includes(dow))return {ok:0,t:'No class today.'};
+    if(!S.bypass&&!S.date){const n=mins(myTime()),s=mins(c.start);if(n<s-15||n>s+30)return {ok:0,t:'Check-in is only open 15 min before to 30 min after the class starts.'}}
+  }
+  if(S.checkins.some(x=>x.date===d&&x.sid===sid))return {ok:0,t:'Already checked in for '+d+'.'};
+  S.checkins.push({date:d,sid,pts:c.pts,manual:!!manual,at:new Date().toISOString()});save();
+  return {ok:1,t:'Checked in for '+d+'. +'+c.pts+' points!'};
+}
+function scan(){flash=checkIn(S.sid);render()}
+function mark(sid){checkIn(sid,true);render()}
+function undo(sid){const d=D();S.checkins=S.checkins.filter(x=>!(x.date===d&&x.sid===sid));S.pays=S.pays.filter(p=>!(p.date===d&&p.sid===sid));save();render()}
+function pay(sid){
+  const a=+document.getElementById('a'+sid).value,m=document.getElementById('m'+sid).value;
+  if(!(a>0))return alert('Enter an amount.');
+  S.pays.push({date:D(),sid,amt:a,method:m});save();render()
+}
+function unpay(sid){S.pays=S.pays.filter(p=>!(p.date===D()&&p.sid===sid));save();render()}
+function csv(){
+  const d=D();let t='date,student,checked_in,paid,method\n';
+  S.students.forEach(s=>{const c=S.checkins.some(x=>x.date===d&&x.sid===s.id),ps=S.pays.filter(p=>p.date===d&&p.sid===s.id);
+    t+=[d,s.name,c?'yes':'no',ps.reduce((a,p)=>a+p.amt,0),ps.map(p=>p.method).join('+')].join(',')+'\n'});
+  document.getElementById('csvbox').innerHTML='<textarea readonly onclick="this.select()">'+t+'</textarea><div class="mute">Tap the box, copy, and paste into Excel or Sheets.</div>';
+}
+function teacher(){
+  const d=D(),c=S.cls,here=S.students.filter(s=>S.checkins.some(x=>x.date===d&&x.sid===s.id));
+  const dp=S.pays.filter(p=>p.date===d),tot=m=>dp.filter(p=>p.method===m).reduce((a,p)=>a+p.amt,0);
+  const owing=here.filter(s=>!dp.some(p=>p.sid===s.id)).length;
+  let h=`<div class="card"><div class="row"><div><b>${c.name}</b><div class="mute">Fee ${rm(c.fee)} per class · ${c.pts} points per check-in</div></div></div>
+  <div id="qr"></div><div class="mute" style="text-align:center">One fixed QR for every class. Print it once and put it on the wall.<br>yourapp.com/c/${c.id}</div></div>
+  <h2>Collected on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
+  <div class="mute" style="margin-top:6px">Total ${rm(dp.reduce((a,p)=>a+p.amt,0))} · ${owing} still to pay · ${here.length} of ${S.students.length} present</div>
+  <h2>Attendance</h2>`;
+  S.students.forEach(s=>{
+    const ci=S.checkins.find(x=>x.date===d&&x.sid===s.id),ps=dp.filter(p=>p.sid===s.id);
+    h+=`<div class="card"><div class="row"><b>${s.name}</b>`;
+    if(!ci)h+=`<span><span class="tag w">Absent</span> <button class="b" onclick="mark('${s.id}')">Mark present</button></span></div>`;
+    else{
+      h+=`<span><span class="tag">${ci.manual?'Present (manual)':'Checked in'}</span> <button class="b" onclick="undo('${s.id}')">Undo</button></span></div>`;
+      if(ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} · ${ps.map(p=>({cash:'Cash',bank_in:'Bank-in',tng:'TNG'})[p.method]).join(', ')}</span><button class="b" onclick="unpay('${s.id}')">Remove payment</button></div>`;
+      else h+=`<div class="pay"><input id="a${s.id}" type="number" min="0" step="0.5" value="${c.fee}" aria-label="Amount"><select id="m${s.id}" aria-label="Payment method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="b p" onclick="pay('${s.id}')">Record payment</button></div>`;
+    }
+    h+='</div>';
+  });
+  h+=`<button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
+  return h;
+}
+function student(){
+  const d=D(),me=S.sid,mine=S.checkins.filter(c=>c.sid===me).sort((a,b)=>b.date.localeCompare(a.date));
+  const board=S.students.map(s=>({n:s.name,p:pts(s.id),id:s.id})).sort((a,b)=>b.p-a.p);
+  let h=`<div class="card"><label class="mute">Logged in as <select onchange="S.sid=this.value;flash=null;save();render()">${S.students.map(s=>`<option value="${s.id}" ${s.id===me?'selected':''}>${s.name}</option>`).join('')}</select></label></div>
+  <div class="card"><div class="mute">Your points</div><div class="big">${pts(me)}</div></div>
+  <div class="card"><b>${S.cls.name}</b><div class="mute">Scan the class QR with your phone camera. Here, tap the button to simulate it.</div>
+  <button class="b p" style="margin-top:10px;width:100%;padding:14px" onclick="scan()">Scan class QR</button>
+  ${flash?`<div class="msg ${flash.ok?'ok':'no'}">${flash.t}</div>`:''}</div>
+  <h2>Leaderboard</h2>`;
+  board.forEach((b,i)=>h+=`<div class="card row" ${b.id===me?'style="border-color:var(--acc)"':''}><span>${i+1}. ${b.n}</span><b>${b.p} pts</b></div>`);
+  h+='<h2>My attendance</h2>';
+  h+=mine.length?mine.map(c=>`<div class="card row"><span>${c.date}</span><span class="tag">+${c.pts} pts</span></div>`).join(''):'<div class="mute">No check-ins yet. Scan the QR at your next class.</div>';
+  return h;
+}
+function render(){
+  document.getElementById('cname').textContent=S.cls.name;
+  document.getElementById('tT').className=S.role==='teacher'?'on':'';
+  document.getElementById('tS').className=S.role==='student'?'on':'';
+  document.getElementById('dd').value=S.date||'';document.getElementById('dd').placeholder=myDate();
+  document.getElementById('byp').checked=S.bypass;
+  document.getElementById('app').innerHTML=S.role==='teacher'?teacher():student();
+  if(S.role==='teacher'){const q=document.getElementById('qr');try{new QRCode(q,{text:'https://yourapp.com/c/'+S.cls.id,width:150,height:150})}catch(e){q.textContent='QR'}}
+}
+render();
+</script></body></html>
