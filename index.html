@@ -49,9 +49,9 @@ const KEY='attendance-v2';
 const seed=()=>({role:'teacher',sid:'',date:'',bypass:true,
 cls:{id:'math-sat',name:'Saturday Math',fee:20,pts:10,days:[1,3],start:'20:00',end:'22:00',v2:1,mult:1,maxFree:10,rewards:[{id:'r1',name:'Free drink',cost:50,kind:'drink'},{id:'r2',name:'RM 5 off the class',cost:100,kind:'discount'},{id:'r3',name:'Guest pass for a friend',cost:150,kind:'guest'},{id:'r4',name:'Water bottle or towel',cost:200},{id:'r5',name:'1 free class',cost:400,free:1,kind:'free'},{id:'r6',name:'Coach T-shirt or gloves',cost:600}]},
 students:[['s1','Aisyah','0121000001'],['s2','Wei Jie','0121000002'],['s3','Priya','0121000003'],['s4','Daniel','0121000004'],['s5','Nurul','0121000005']].map(([id,name,phone])=>({id,name,phone})),
-checkins:[],pays:[],redeems:[],bonus:[],sales:[],stockLog:[],items:[{id:'water',name:'Water',price:2,stock:24,low:6},{id:'soda',name:'Soda',price:2,stock:24,low:6}]});
+checkins:[],pays:[],redeems:[],bonus:[],subs:[],sales:[],stockLog:[],items:[{id:'water',name:'Water',price:2,stock:24,low:6},{id:'soda',name:'Soda',price:2,stock:24,low:6}]});
 let S;try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
-if(S.cls.start==='09:00')S.cls.start='20:00';S.cls.end=S.cls.end||'22:00';S.cls.lastIn=S.cls.lastIn||'21:30';S.redeems=S.redeems||[];S.bonus=S.bonus||[];S.sales=S.sales||[];S.stockLog=S.stockLog||[];S.items=S.items||seed().items;S.cls.rewards.forEach(r=>{if(!r.kind)r.kind={r1:'drink',r2:'discount',r3:'guest',r5:'free'}[r.id]||'other'});if(!S.cls.v2){const z=seed().cls;S.cls.rewards=z.rewards;S.cls.days=z.days;S.cls.mult=1;S.cls.maxFree=10;S.cls.v2=1}const qp=new URLSearchParams(location.search);if(qp.get('c')||qp.get('shop'))S.role='student';
+if(S.cls.start==='09:00')S.cls.start='20:00';S.cls.end=S.cls.end||'22:00';S.cls.lastIn=S.cls.lastIn||'21:30';S.redeems=S.redeems||[];S.bonus=S.bonus||[];S.sales=S.sales||[];S.subs=S.subs||[];S.stockLog=S.stockLog||[];S.items=S.items||seed().items;S.cls.rewards.forEach(r=>{if(!r.kind)r.kind={r1:'drink',r2:'discount',r3:'guest',r5:'free'}[r.id]||'other'});if(!S.cls.v2){const z=seed().cls;S.cls.rewards=z.rewards;S.cls.days=z.days;S.cls.mult=1;S.cls.maxFree=10;S.cls.v2=1}const qp=new URLSearchParams(location.search);if(qp.get('c')||qp.get('shop'))S.role='student';
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const myDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).format(new Date());
 const myTime=()=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit'}).format(new Date());
@@ -59,8 +59,11 @@ const D=()=>S.date||myDate();
 const mins=t=>{const[a,b]=t.split(':');return +a*60+ +b};
 const nm=id=>S.students.find(s=>s.id===id).name;
 const cutoff=()=>{const d=new Date(myDate()+'T00:00:00');d.setDate(d.getDate()-183);return d.toISOString().slice(0,10)};
-const paidOn=(d,id)=>S.pays.some(p=>p.date===d&&p.sid===id&&p.method!=='reward');
-const earned=id=>{const k=cutoff();return S.checkins.filter(c=>c.sid===id&&c.date>=k&&paidOn(c.date,id)).reduce((a,c)=>a+c.pts,0)+(S.bonus||[]).filter(b=>b.sid===id&&b.date>=k).reduce((a,b)=>a+b.pts,0)};
+const paidOn=(d,id)=>S.pays.some(p=>p.date===d&&p.sid===id&&p.method!=='reward')||hasSub(id,d);
+const earned=id=>{const k=cutoff(),mon={};let t=0;
+  S.checkins.filter(c=>c.sid===id&&c.date>=k&&paidOn(c.date,id)).forEach(c=>{if(hasSub(id,c.date)){const m=c.date.slice(0,7);mon[m]=(mon[m]||0)+c.pts}else t+=c.pts});
+  Object.values(mon).forEach(v=>t+=Math.min(v,S.cls.planCap||60));
+  return t+(S.bonus||[]).filter(b=>b.sid===id&&b.date>=k).reduce((a,b)=>a+b.pts,0)};
 const pts=id=>earned(id)-S.redeems.filter(r=>r.sid===id&&r.status!=='rejected').reduce((a,r)=>a+r.cost,0);
 const rm=n=>'RM '+(+n).toFixed(2).replace(/\.00$/,'');
 let showSum=S.role==='teacher';
@@ -69,7 +72,7 @@ const t12=t=>{let[h,m]=t.split(':').map(Number);const a=h>=12?'pm':'am';h=h%12||
 function setLogo(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=96;const x=c.getContext('2d'),m=Math.min(im.width,im.height);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,96,96);S.logo=c.toDataURL('image/png');save();render()};im.src=r.result};r.readAsDataURL(f)}
 function summary(d,c,here,dp){
   if(!showSum)return '';
-  const total=dp.reduce((a,p)=>a+p.amt,0),owing=here.filter(s=>!dp.some(p=>p.sid===s.id)),fresh=S.students.filter(s=>s.joined===d),health=here.filter(s=>s.health);
+  const total=dp.reduce((a,p)=>a+p.amt,0)+S.subs.filter(x=>x.date===d).reduce((a,x)=>a+x.amt,0),owing=here.filter(s=>!dp.some(p=>p.sid===s.id)&&!hasSub(s.id,d)),fresh=S.students.filter(s=>s.joined===d),health=here.filter(s=>s.health);
   const dow=new Date(d+'T00:00:00').getDay()||7;
   return `<div class="card" style="border-color:var(--acc)" role="status"><div class="row"><b>Summary for ${d}</b><button class="b" onclick="showSum=false;render()">Dismiss</button></div>
   <div class="mute">${c.name}, ${t12(c.start)} to ${t12(c.end)}${c.days.includes(dow)?'':' (no class scheduled on this day)'}</div>
@@ -125,6 +128,7 @@ function info(s){
 }
 function logout(){S.sid='';flash=null;pending=null;save();render()}
 function payBar(id,d){
+  if(hasSub(id,d))return `<div class="msg ok" role="status">Monthly plan active for ${d.slice(0,7)}. Your classes are covered. You earn class points up to ${S.cls.planCap||60} a month.</div>`;
   if(!S.checkins.some(c=>c.date===d&&c.sid===id))return '';
   const ps=S.pays.filter(p=>p.date===d&&p.sid===id),L={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free class reward'};
   if(!ps.length)return `<div class="msg no" role="status">Payment pending (${d}): ${rm(feeFor(id,d))}${feeFor(id,d)<S.cls.fee?' after your RM 5 reward':''}. Pay the coach by Cash, Bank-in or TNG to earn your points.</div>`;
@@ -133,6 +137,7 @@ function payBar(id,d){
 function redeem(rid){
   const r=S.cls.rewards.find(x=>x.id===rid);if(!r||pts(S.sid)<r.cost)return;
   if(S.redeems.some(x=>x.sid===S.sid&&x.date===D()&&x.status!=='rejected'))return alert('Only one reward can be redeemed per class day.');
+  if((r.kind==='free'||r.kind==='discount')&&hasSub(S.sid,D()))return alert('You are on the monthly plan, so please choose another reward.');
   if(r.free&&new Set(S.pays.filter(p=>p.date===D()).map(p=>p.sid)).size>S.cls.maxFree)return alert('The free class is only available when the class has spare seats ('+S.cls.maxFree+' or fewer paying students today).');
   S.redeems.push({id:'d'+Date.now(),sid:S.sid,name:r.name,cost:r.cost,status:'pending',date:D(),kind:r.kind||'other'});save();render()
 }
@@ -175,7 +180,7 @@ function giveBonus(){
 }
 function adminExtra(){
   const c=S.cls;
-  return `<details class="card" ${rwOpen?'open':''} ontoggle="rwOpen=this.open"><summary style="cursor:pointer;font-weight:600">Rewards (edit)</summary>${c.rewards.map((r,i)=>`<div class="pay"><input value="${r.name}" style="flex:1;width:auto" onchange="editR(${i},'name',this.value)" aria-label="Reward name"><select onchange="editR(${i},'kind',this.value)" aria-label="Reward type">${[['drink','Free drink'],['discount','RM 5 off'],['free','Free class'],['guest','Guest pass'],['other','Other gift']].map(k=>`<option value="${k[0]}" ${r.kind===k[0]?'selected':''}>${k[1]}</option>`).join('')}</select><input type="number" value="${r.cost}" onchange="editR(${i},'cost',this.value)" aria-label="Points cost"><button class="b" onclick="delR(${i})">Remove</button></div>`).join('')}<div class="pay"><button class="b" onclick="addR()">Add reward</button></div><div class="mute" style="margin-top:8px">Pricing tip: points = your cost in RM x 20.</div></details><div class="card"><div class="row"><span>Double points (slow periods)</span><input type="checkbox" ${c.mult===2?'checked':''} onchange="S.cls.mult=this.checked?2:1;save();render()" aria-label="Double points"></div><div class="row" style="margin-top:10px"><span>Free class only if paying students are at most</span><input type="number" value="${c.maxFree}" style="width:70px" onchange="S.cls.maxFree=+this.value||10;save()" aria-label="Seat limit"></div></div>`
+  return `<details class="card" ${rwOpen?'open':''} ontoggle="rwOpen=this.open"><summary style="cursor:pointer;font-weight:600">Rewards (edit)</summary>${c.rewards.map((r,i)=>`<div class="pay"><input value="${r.name}" style="flex:1;width:auto" onchange="editR(${i},'name',this.value)" aria-label="Reward name"><select onchange="editR(${i},'kind',this.value)" aria-label="Reward type">${[['drink','Free drink'],['discount','RM 5 off'],['free','Free class'],['guest','Guest pass'],['other','Other gift']].map(k=>`<option value="${k[0]}" ${r.kind===k[0]?'selected':''}>${k[1]}</option>`).join('')}</select><input type="number" value="${r.cost}" onchange="editR(${i},'cost',this.value)" aria-label="Points cost"><button class="b" onclick="delR(${i})">Remove</button></div>`).join('')}<div class="pay"><button class="b" onclick="addR()">Add reward</button></div><div class="mute" style="margin-top:8px">Pricing tip: points = your cost in RM x 20.</div></details><div class="card"><div class="row"><span>Double points (slow periods)</span><input type="checkbox" ${c.mult===2?'checked':''} onchange="S.cls.mult=this.checked?2:1;save();render()" aria-label="Double points"></div><div class="row" style="margin-top:10px"><span>Free class only if paying students are at most</span><input type="number" value="${c.maxFree}" style="width:70px" onchange="S.cls.maxFree=+this.value||10;save()" aria-label="Seat limit"></div><div class="row" style="margin-top:10px"><span>Monthly plan points cap per month</span><input type="number" value="${c.planCap||60}" style="width:70px" onchange="S.cls.planCap=+this.value||60;save()" aria-label="Plan points cap"></div></div>`
 }
 function editR(i,k,v){S.cls.rewards[i][k]=k==='cost'?(+v||0):v.replace(/[<>&"]/g,'').trim();save()}
 function delR(i){S.cls.rewards.splice(i,1);save();render()}
@@ -184,12 +189,21 @@ function shrink(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image(
 function setPhoto(i){const f=i.files[0];if(f)shrink(f,p=>{S.students.find(s=>s.id===S.sid).photo=p;save();render()})}
 const av=(s,z)=>s.photo?`<img src="${s.photo}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover">`:`<span style="width:${z}px;height:${z}px;border-radius:50%;background:var(--accbg);color:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none">${(s.name||'?')[0]}</span>`;
 const MLBL={cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free reward'};
+const hasSub=(sid,d)=>S.subs.some(x=>x.sid===sid&&x.month===d.slice(0,7));
+const capped=(id,c)=>hasSub(id,c.date)&&S.checkins.filter(x=>x.sid===id&&x.date.slice(0,7)===c.date.slice(0,7)&&x.date<=c.date).reduce((a,x)=>a+x.pts,0)>(S.cls.planCap||60);
+const monthClasses=m=>{const[y,mo]=m.split('-').map(Number);let n=0;for(let d=new Date(y,mo-1,1);d.getMonth()===mo-1;d.setDate(d.getDate()+1))if(S.cls.days.includes(d.getDay()||7))n++;return n};
+function subAdmin(){
+  const m=D().slice(0,7),act=S.subs.filter(x=>x.month===m);
+  return `<h2>Monthly plans</h2><div class="card"><div class="mute">This month (${m}) has ${monthClasses(m)} classes. The plan keeps the same price every month and covers all of them. Students earn 10 points per class, up to ${S.cls.planCap||60} points a month on a plan.</div><div class="pay"><select id="ss" aria-label="Student">${S.students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select><input id="sa" type="number" value="120" aria-label="Amount"><select id="sm" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="b p" onclick="addSub()">Record plan</button></div></div>`+act.map(x=>`<div class="card row"><span><b>${nm(x.sid)}</b><br><span class="mute">${rm(x.amt)} by ${MLBL[x.method]}</span></span><button class="b" onclick="delSub('${x.id}')">Remove</button></div>`).join('');
+}
+function addSub(){const v=i=>document.getElementById(i).value,sid=v('ss'),a=+v('sa'),m=D().slice(0,7);if(!(a>0))return alert('Enter an amount.');if(hasSub(sid,D()))return alert('This student already has a plan for '+m+'.');S.subs.push({id:'p'+Date.now(),sid,month:m,amt:a,method:v('sm'),date:D()});save();render()}
+function delSub(id){S.subs=S.subs.filter(x=>x.id!==id);save();render()}
 const feeFor=(sid,d)=>Math.max(0,S.cls.fee-(S.redeems.some(r=>r.sid===sid&&r.date===d&&r.status==='approved'&&r.kind==='discount')?5:0));
 function usePass(id){const r=S.redeems.find(x=>x.id===id);if(!r)return;r.friend=(prompt("Friend's name?")||'').replace(/[<>&"]/g,'').trim();r.used=true;save();render()}
 function settleDrinks(sid){const m=document.getElementById('od'+sid).value;S.sales.filter(x=>x.sid===sid&&!x.method).forEach(x=>x.method=m);save();render()}
 function outView(){
   const rows=S.students.map(s=>{
-    const cl=S.checkins.filter(c=>c.sid===s.id&&!S.pays.some(p=>p.date===c.date&&p.sid===s.id));
+    const cl=S.checkins.filter(c=>c.sid===s.id&&!S.pays.some(p=>p.date===c.date&&p.sid===s.id)&&!hasSub(s.id,c.date));
     const cf=cl.reduce((a,c)=>a+feeFor(s.id,c.date),0),dr=S.sales.filter(x=>x.sid===s.id&&!x.method).reduce((a,x)=>a+x.amt,0);
     return {s,n:cl.length,cf,dr,t:cf+dr}}).filter(r=>r.t>0);
   if(!rows.length)return '<h2>Outstanding</h2><div class="card mute">Nothing outstanding.</div>';
@@ -246,12 +260,12 @@ function csv(){
 }
 function teacher(){
   const d=D(),c=S.cls,here=S.students.filter(s=>S.checkins.some(x=>x.date===d&&x.sid===s.id));
-  const dp=S.pays.filter(p=>p.date===d),tot=m=>dp.filter(p=>p.method===m).reduce((a,p)=>a+p.amt,0);
-  const owing=here.filter(s=>!dp.some(p=>p.sid===s.id)).length;
+  const dp=S.pays.filter(p=>p.date===d),tot=m=>dp.filter(p=>p.method===m).reduce((a,p)=>a+p.amt,0)+S.subs.filter(x=>x.date===d&&x.method===m).reduce((a,x)=>a+x.amt,0);
+  const owing=here.filter(s=>!dp.some(p=>p.sid===s.id)&&!hasSub(s.id,d)).length;
   let h=summary(d,c,here,dp)+`<div class="card"><div class="row"><div><b>${c.name}</b><div class="mute">${t12(c.start)} to ${t12(c.end)} · Fee ${rm(c.fee)} per class · ${c.pts} points per check-in</div></div></div>
   <div id="qr"></div><div class="mute" style="text-align:center">One fixed QR for every class. Print it once and put it on the wall. Scanning it opens the student check-in page.</div></div>
   <div class="card"><b>Drink shop QR</b><div id="qr2"></div><div class="mute" style="text-align:center">Put this at the drink table. Students scan it, log in, choose water or soda and tap Buy.</div></div><h2>Collected on ${d}</h2><div class="sum"><div><span class="mute">Cash</span><b>${rm(tot('cash'))}</b></div><div><span class="mute">Bank-in</span><b>${rm(tot('bank_in'))}</b></div><div><span class="mute">TNG</span><b>${rm(tot('tng'))}</b></div></div>
-  <div class="mute" style="margin-top:6px">Total ${rm(dp.reduce((a,p)=>a+p.amt,0))} · ${owing} still to pay · ${here.length} of ${S.students.length} present</div>
+  <div class="mute" style="margin-top:6px">Total ${rm(dp.reduce((a,p)=>a+p.amt,0)+S.subs.filter(x=>x.date===d).reduce((a,x)=>a+x.amt,0))} · ${owing} still to pay · ${here.length} of ${S.students.length} present</div>
   ${reqView()}<h2>Attendance</h2>`;
   S.students.forEach(s=>{
     const ci=S.checkins.find(x=>x.date===d&&x.sid===s.id),ps=dp.filter(p=>p.sid===s.id);
@@ -259,12 +273,12 @@ function teacher(){
     if(!ci)h+=`<span><span class="tag w">Absent</span> <button class="b" onclick="mark('${s.id}')">Mark present</button></span></div>`;
     else{
       h+=`<span><span class="tag">${ci.manual?'Present (manual)':'Checked in'}</span> <button class="b" onclick="undo('${s.id}')">Undo</button></span></div>`;
-      if(ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} · ${ps.map(p=>({cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free'})[p.method]).join(', ')}</span><button class="b" onclick="unpay('${s.id}')">Remove payment</button></div>`;
+      if(hasSub(s.id,d)&&!ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Monthly plan: no payment needed</span></div>`;else if(ps.length)h+=`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+p.amt,0))} · ${ps.map(p=>({cash:'Cash',bank_in:'Bank-in',tng:'TNG',reward:'Free'})[p.method]).join(', ')}</span><button class="b" onclick="unpay('${s.id}')">Remove payment</button></div>`;
       else h+=`${feeFor(s.id,d)<c.fee?'<div class="mute">Reward applied: RM 5 off</div>':''}<div class="pay"><input id="a${s.id}" type="number" min="0" step="0.5" value="${feeFor(s.id,d)}" aria-label="Amount"><select id="m${s.id}" aria-label="Payment method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option><option value="reward">Free (guest pass)</option></select><button class="b p" onclick="pay('${s.id}')">Record payment</button></div>`;
     }
     h+=info(s)+'</div>';
   });
-  h+=outView()+shopAdmin()+bonusView()+`<h2>Admin settings</h2>${adminExtra()}<div class="card"><div class="row" style="margin-bottom:10px"><span>Class name</span><input value="${c.name}" onchange="S.cls.name=this.value.replace(/[<>&&quot;]/g,'').trim()||S.cls.name;save();render()" aria-label="Class name"></div><div class="row"><span>Class logo</span><span><input type="file" id="lf" accept="image/*" onchange="setLogo(this)" aria-label="Upload logo">${S.logo?' <button class="b" onclick="S.logo=\'\';save();render()">Remove</button>':''}</span></div></div><button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
+  h+=subAdmin()+outView()+shopAdmin()+bonusView()+`<h2>Admin settings</h2>${adminExtra()}<div class="card"><div class="row" style="margin-bottom:10px"><span>Class name</span><input value="${c.name}" onchange="S.cls.name=this.value.replace(/[<>&&quot;]/g,'').trim()||S.cls.name;save();render()" aria-label="Class name"></div><div class="row"><span>Class logo</span><span><input type="file" id="lf" accept="image/*" onchange="setLogo(this)" aria-label="Upload logo">${S.logo?' <button class="b" onclick="S.logo=\'\';save();render()">Remove</button>':''}</span></div></div><button class="b" onclick="csv()">Export day to CSV</button><div id="csvbox" style="margin-top:8px"></div>`;
   return h;
 }
 function student(){
@@ -279,7 +293,7 @@ function student(){
   ${rewardsView(me)}${shopView(me)}<h2>Leaderboard</h2>`;
   board.forEach((b,i)=>h+=`<div class="card row" ${b.id===me?'style="border-color:var(--acc)"':''}><span>${i+1}. ${b.n}</span><b>${b.p} pts</b></div>`);
   h+='<h2>My attendance</h2>';
-  h+=mine.length?mine.map(c=>{const ps=S.pays.filter(p=>p.date===c.date&&p.sid===me);return `<div class="card row"><span>${c.date}</span><span>${ps.length?`<span class="tag">+${c.pts} pts</span> `:''}${ps.length?'<span class="tag">Paid</span>':'<span class="tag w">Pending</span>'}</span></div>`}).join(''):'<div class="mute">No check-ins yet. Scan the QR at your next class.</div>';
+  h+=mine.length?mine.map(c=>{const ps=S.pays.filter(p=>p.date===c.date&&p.sid===me).concat(hasSub(me,c.date)?[1]:[]);return `<div class="card row"><span>${c.date}</span><span>${ps.length?(capped(me,c)?'<span class="tag w">Plan cap reached</span> ':`<span class="tag">+${c.pts} pts</span> `):''}${ps.length?'<span class="tag">Paid</span>':'<span class="tag w">Pending</span>'}</span></div>`}).join(''):'<div class="mute">No check-ins yet. Scan the QR at your next class.</div>';
   return h;
 }
 function render(){
