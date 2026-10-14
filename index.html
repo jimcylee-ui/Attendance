@@ -3,6 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Class Attendance</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{--bg:#f4f6f3;--card:#fff;--ink:#17262b;--mute:#66767b;--line:#dde3df;--acc:#12715b;--accbg:#dff2ea;--warn:#a85d00;--warnbg:#fdecd2}
 @media(prefers-color-scheme:dark){:root{--bg:#10181b;--card:#182327;--ink:#e8efec;--mute:#93a4a8;--line:#2a393d;--acc:#4cc9a3;--accbg:#183a31;--warn:#f0b25c;--warnbg:#3a2c12}}
@@ -15,7 +16,7 @@ button{cursor:pointer;font-weight:600}.p{background:var(--acc);border-color:var(
 .tag{font-size:13px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--accbg);color:var(--acc)}.tag.w{background:var(--warnbg);color:var(--warn)}
 .big{font-size:44px;font-weight:800;line-height:1}.msg{padding:10px 12px;border-radius:10px;margin:10px 0;font-weight:600;background:var(--warnbg);color:var(--warn)}.msg.ok{background:var(--accbg);color:var(--acc)}
 .card.row>.msg{flex:1;margin:0;font-size:15px}.f{display:grid;gap:8px;margin-top:10px}.f label{font-size:14px;color:var(--mute);display:grid;gap:3px}.f input,.f textarea{width:100%}
-.ck{display:flex!important;gap:8px}.ck input{width:auto!important}.pay{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.pay input{width:84px}
+.ck{display:flex!important;gap:8px}.ck input{width:auto!important}.pay{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.pay input{width:84px}.qr{display:flex;justify-content:center;padding:12px;background:#fff;border-radius:10px;width:max-content;margin:8px auto}
 </style></head><body><main id="app">Loading...</main>
 <script>
 const SB=supabase.createClient('https://lsmpuososyevrtnqyiuu.supabase.co','sb_publishable_o7EA9LahfLqnc_9UbDiXkg_dDzEAPrk');
@@ -73,35 +74,70 @@ async function doCheckin(){
   studentView();
 }
 async function studentView(){
-  const t=today(),[ci,pa,pt]=await Promise.all([SB.from('checkins').select('class_date,pts').order('class_date',{ascending:false}),SB.from('payments').select('class_date,amount,method'),SB.rpc('my_points')]);
+  const t=today(),[ci,pa,pt,pl,it,sl]=await Promise.all([SB.from('checkins').select('class_date,pts').order('class_date',{ascending:false}),SB.from('payments').select('class_date,amount,method'),SB.rpc('my_points'),SB.from('plans').select('month'),SB.from('items').select('*').order('name'),SB.from('sales').select('*')]);
   const pays=pa.data||[],paid=d=>pays.filter(x=>x.class_date===d),inToday=(ci.data||[]).some(c=>c.class_date===t),tp=paid(t);
-  const bar=inToday?(tp.length?`<div class="msg ok">Paid ${rm(tp.reduce((a,p)=>a+ +p.amount,0))} by ${tp.map(p=>ML[p.method]).join(', ')}</div>`:`<div class="msg">Payment pending: ${rm(cfg.fee)}. Pay the coach by Cash, Bank-in or TNG to earn your points.</div>`):'';
+  const pm=(pl.data||[]).map(x=>x.month),bar=pm.includes(mon(t))?`<div class="msg ok">Monthly plan active for ${mon(t)}. Your classes are covered. You earn class points up to ${cfg.plan_cap} a month.</div>`:inToday?(tp.length?`<div class="msg ok">Paid ${rm(tp.reduce((a,p)=>a+ +p.amount,0))} by ${tp.map(p=>ML[p.method]).join(', ')}</div>`:`<div class="msg">Payment pending: ${rm(cfg.fee)}. Pay the coach by Cash, Bank-in or TNG to earn your points.</div>`):'';
   A.innerHTML=`<div class="card row"><span class="mute">Logged in as <b>${esc(prof.first_name)}</b></span><button onclick="logout()">Log out</button></div>
   <div class="card row" style="flex-wrap:nowrap;align-items:stretch"><div><div class="mute">Your points</div><div class="big">${pt.data||0}</div></div>${bar}</div>
   <div class="card"><b>${esc(cfg.class_name)}</b><div class="mute">After scanning the class QR, tap Check in.</div><button class="p" style="width:100%;padding:14px;margin-top:10px" onclick="doCheckin()">Check in</button>${msg?`<div class="msg ${msg.startsWith('Checked')?'ok':''}">${esc(msg)}</div>`:''}</div>
-  <h2>My attendance</h2>${(ci.data||[]).map(c=>`<div class="card row"><span>${c.class_date}</span>${paid(c.class_date).some(p=>p.method!=='reward')?`<span class="tag">+${c.pts} pts</span>`:'<span class="tag w">Payment pending</span>'}</div>`).join('')||'<div class="mute">No check-ins yet.</div>'}`;
+  ${shopHtml(it.data||[],sl.data||[])}<h2>My attendance</h2>${(ci.data||[]).map(c=>`<div class="card row"><span>${c.class_date}</span>${(paid(c.class_date).some(p=>p.method!=='reward')||pm.includes(mon(c.class_date)))?`<span class="tag">+${c.pts} pts</span>`:'<span class="tag w">Payment pending</span>'}</div>`).join('')||'<div class="mute">No check-ins yet.</div>'}`;
 }
 async function coachView(){
   const d=date||today();
-  const[st,ci,pa]=await Promise.all([SB.from('profiles').select('*').eq('role','student').order('first_name'),SB.from('checkins').select('*'),SB.from('payments').select('*')]);
-  const S=st.data||[],C=ci.data||[],P=pa.data||[];
-  const sum=f=>{const t={cash:0,bank_in:0,tng:0};P.filter(p=>f(p.class_date)&&t[p.method]!==undefined).forEach(p=>t[p.method]+=+p.amount);return t};
-  const card=(title,f)=>{const t=sum(f);return `<div class="card"><div class="row"><b>${title}</b><b>${rm(t.cash+t.bank_in+t.tng)}</b></div><div class="mute">Cash ${rm(t.cash)}, Bank-in ${rm(t.bank_in)}, TNG ${rm(t.tng)}</div></div>`};
+  const[st,ci,pa,pl,it,sl]=await Promise.all([SB.from('profiles').select('*').eq('role','student').order('first_name'),SB.from('checkins').select('*'),SB.from('payments').select('*'),SB.from('plans').select('*'),SB.from('items').select('*').order('name'),SB.from('sales').select('*')]);
+  const S=st.data||[],C=ci.data||[],P=pa.data||[],PL=pl.data||[],I=it.data||[],SA=sl.data||[];
+  const sum=f=>{const t={cash:0,bank_in:0,tng:0,fees:0,plans:0,drinks:0},add=(m,a,k)=>{if(t[m]!==undefined){t[m]+=+a;t[k]+=+a}};P.filter(p=>f(p.class_date)).forEach(p=>add(p.method,p.amount,'fees'));PL.filter(p=>f(p.paid_on)).forEach(p=>add(p.method,p.amount,'plans'));SA.filter(x=>x.method&&f(x.paid_on||x.sale_date)).forEach(x=>add(x.method,x.amount,'drinks'));return t};
+  const card=(title,f)=>{const t=sum(f);return `<div class="card"><div class="row"><b>${title}</b><b>${rm(t.cash+t.bank_in+t.tng)}</b></div><div class="mute">Cash ${rm(t.cash)}, Bank-in ${rm(t.bank_in)}, TNG ${rm(t.tng)}</div><div class="mute">Class fees ${rm(t.fees)}, monthly plans ${rm(t.plans)}, drinks ${rm(t.drinks)}</div></div>`};
   const rows=S.map(s=>{
-    const here=C.some(c=>c.student_id===s.id&&c.class_date===d),ps=P.filter(p=>p.student_id===s.id&&p.class_date===d);
+    const plan=PL.some(x=>x.student_id===s.id&&x.month===mon(d)),here=C.some(c=>c.student_id===s.id&&c.class_date===d),ps=P.filter(p=>p.student_id===s.id&&p.class_date===d);
     const det=`<details style="margin-top:8px"><summary class="mute" style="cursor:pointer">Contact, emergency and health details</summary><div class="mute" style="margin-top:6px;line-height:1.7">Contact: <a href="tel:${esc(s.phone)}">${esc(s.phone)}</a><br>Email: ${esc(s.email)}<br>Address: ${esc(s.address)}<br>Emergency: ${esc(s.ec_name)}, <a href="tel:${esc(s.ec_phone)}">${esc(s.ec_phone)}</a><br>Health: ${s.health?'<b style="color:var(--warn)">'+esc(s.health)+'</b>':'None declared'}</div></details>`;
     let h=`<div class="card"><div class="row"><b>${esc(s.first_name)} ${esc(s.last_name)} <span class="mute">${esc(s.phone)}</span></b>`;
     if(!here)h+=`<span><span class="tag w">Absent</span> <button onclick="act('in','${s.id}')">Mark present</button></span></div>`;
     else{h+=`<span><span class="tag">Present</span> <button onclick="act('undo','${s.id}')">Undo</button></span></div>`;
-      h+=ps.length?`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+ +p.amount,0))} by ${ps.map(p=>ML[p.method]).join(', ')}</span><button onclick="act('unpay','${s.id}')">Remove payment</button></div>`:`<div class="pay"><input id="a${s.id}" type="number" step="0.5" value="${cfg.fee}" aria-label="Amount"><select id="m${s.id}" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option><option value="reward">Free (guest pass)</option></select><button class="p" onclick="act('pay','${s.id}')">Record payment</button></div>`}
+      h+=plan&&!ps.length?'<div class="row" style="margin-top:8px"><span class="tag">Monthly plan: no payment needed</span></div>':ps.length?`<div class="row" style="margin-top:8px"><span class="tag">Paid ${rm(ps.reduce((a,p)=>a+ +p.amount,0))} by ${ps.map(p=>ML[p.method]).join(', ')}</span><button onclick="act('unpay','${s.id}')">Remove payment</button></div>`:`<div class="pay"><input id="a${s.id}" type="number" step="0.5" value="${cfg.fee}" aria-label="Amount"><select id="m${s.id}" aria-label="Method"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option><option value="reward">Free (guest pass)</option></select><button class="p" onclick="act('pay','${s.id}')">Record payment</button></div>`}
     return h+det+'</div>'}).join('');
   A.innerHTML=`<div class="card row"><b>${esc(cfg.class_name)} (Coach)</b><button onclick="logout()">Log out</button></div>
   <div class="card"><label class="row"><span>Test mode: ignore class days and times</span><input type="checkbox" ${cfg.test_mode?'checked':''} onchange="setTest(this.checked)"></label></div>
   ${msg?`<div class="msg">${esc(msg)}</div>`:''}
   <h2>Collection</h2>${card('Daily ('+d+')',x=>x===d)}${card('This month ('+d.slice(0,7)+')',x=>x.slice(0,7)===d.slice(0,7))}${card('Total (all time)',()=>true)}
-  <h2>Attendance</h2><div class="card row"><span class="mute">Date</span><input type="date" value="${d}" onchange="date=this.value;coachView()"></div>${rows||'<div class="mute">No students have registered yet.</div>'}`;
+  ${outHtml(S,C,P,PL,SA)}<h2>Attendance</h2><div class="card row"><span class="mute">Date</span><input type="date" value="${d}" onchange="date=this.value;coachView()"></div>${rows||'<div class="mute">No students have registered yet.</div>'}${plansHtml(S,PL,d)}${shopAdminHtml(I,SA,S,d)}${qrHtml()}`;drawQR();
 }
 async function setTest(on){await SB.from('settings').update({test_mode:on}).eq('id',1);cfg.test_mode=on}
+const mon=d=>d.slice(0,7);let shopOpen=new URLSearchParams(location.search).get('shop')==='1';
+const nm0=s=>esc((s||{}).first_name)+' '+esc((s||{}).last_name);
+async function run(p){const{error}=await p;msg=error?error.message:'';coachView()}
+async function buy(id){const{data,error}=await SB.rpc('buy_item',{p_item:id,p_qty:+v('q_'+id)});msg=error?error.message:data==='ok'?'Added. Please pay the coach.':data;studentView()}
+function shopHtml(items,sales){
+  const t=today(),mine=sales.filter(x=>x.sale_date===t),owe=sales.filter(x=>!x.method).reduce((a,x)=>a+ +x.amount,0);
+  return `<details ${shopOpen?'open':''} ontoggle="shopOpen=this.open" style="margin-top:24px"><summary style="cursor:pointer;font-size:17px;font-weight:600">Buy drinks</summary><div style="margin-top:8px"></div>${items.map(i=>`<div class="card row"><span>${esc(i.name)}<br><span class="mute">${rm(i.price)} each${i.stock<=0?', sold out':''}</span></span><span><select id="q_${i.id}">${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join('')}</select> <button class="p" ${i.stock>0?'':'disabled'} onclick="buy('${i.id}')">Buy</button></span></div>`).join('')}${mine.map(x=>`<div class="card row"><span>${x.qty} x ${esc((items.find(i=>i.id===x.item_id)||{}).name)}</span><span class="tag ${x.method?'':'w'}">${x.method?'Paid':'Pay coach '+rm(x.amount)}</span></div>`).join('')}${owe?`<div class="msg">Drinks to pay: ${rm(owe)}</div>`:''}</details>`;
+}
+function plansHtml(S,PL,d){
+  const m=mon(d),act=PL.filter(x=>x.month===m);
+  return `<h2>Monthly plans</h2><div class="card"><div class="mute">Plan for ${m}: covers every class that month. Class points are capped at ${cfg.plan_cap} a month.</div><div class="pay"><select id="ss">${S.map(s=>`<option value="${s.id}">${nm0(s)}</option>`).join('')}</select><input id="sa" type="number" value="${cfg.plan_fee}" aria-label="Amount"><select id="sm"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="p" onclick="run(SB.from('plans').insert({student_id:v('ss'),month:'${m}',amount:+v('sa'),method:v('sm'),paid_on:today()}))">Record plan</button></div></div>`+act.map(x=>`<div class="card row"><span><b>${nm0(S.find(y=>y.id===x.student_id))}</b><br><span class="mute">${rm(x.amount)} by ${ML[x.method]}</span></span><button onclick="run(SB.from('plans').delete().eq('id','${x.id}'))">Remove</button></div>`).join('');
+}
+function outHtml(S,C,P,PL,SA){
+  const rows=S.map(s=>{const n=C.filter(c=>c.student_id===s.id&&!P.some(p=>p.student_id===s.id&&p.class_date===c.class_date)&&!PL.some(p=>p.student_id===s.id&&p.month===mon(c.class_date))).length,cf=n*cfg.fee,dr=SA.filter(x=>x.student_id===s.id&&!x.method).reduce((a,x)=>a+ +x.amount,0);return{s,n,cf,dr,t:cf+dr}}).filter(r=>r.t>0);
+  return `<h2>Outstanding: ${rm(rows.reduce((a,r)=>a+r.t,0))}</h2>`+(rows.map(r=>`<div class="card"><div class="row"><b>${nm0(r.s)}</b><b>${rm(r.t)}</b></div><div class="mute">Class fees ${rm(r.cf)} (${r.n}), drinks ${rm(r.dr)}</div>${r.dr?`<div class="pay"><select id="od${r.s.id}"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select><button class="p" onclick="run(SB.from('sales').update({method:v('od${r.s.id}'),paid_on:today()}).eq('student_id','${r.s.id}').is('method',null))">Drinks paid</button></div>`:''}</div>`).join('')||'<div class="card mute">Nothing outstanding.</div>');
+}
+function shopAdminHtml(I,SA,S,d){
+  const sl=SA.filter(x=>x.sale_date===d),tot=sl.reduce((a,x)=>a+ +x.amount,0),pd=sl.filter(x=>x.method).reduce((a,x)=>a+ +x.amount,0),iname=id=>esc((I.find(i=>i.id===id)||{}).name);
+  return `<h2>Drink shop</h2><div class="card row"><span>Sold ${rm(tot)}</span><span>Paid ${rm(pd)}</span><span>Unpaid ${rm(tot-pd)}</span></div>`+sl.map(x=>`<div class="card row"><span>${nm0(S.find(y=>y.id===x.student_id))}: ${x.qty} x ${iname(x.item_id)} (${rm(x.amount)})</span>${x.method?`<span class="tag">${ML[x.method]}</span>`:`<span><select id="sx${x.id}"><option value="cash">Cash</option><option value="bank_in">Bank-in</option><option value="tng">TNG</option></select> <button class="p" onclick="run(SB.from('sales').update({method:v('sx${x.id}'),paid_on:today()}).eq('id','${x.id}'))">Paid</button> <button onclick="delSale('${x.id}')">Remove</button></span>`}</div>`).join('')+`<details class="card"><summary style="cursor:pointer;font-weight:600">Stock levels</summary>`+I.map(i=>`<div style="margin-top:12px"><div class="row"><b>${esc(i.name)}</b><span class="tag ${i.stock<=i.low?'w':''}">${i.stock} left${i.stock<=i.low?', low':''}</span></div><div class="pay"><input id="rs${i.id}" type="number" min="1" placeholder="Add"><button onclick="stock('${i.id}','add')">Add stock</button><input id="ct${i.id}" type="number" min="0" placeholder="Counted"><button onclick="stock('${i.id}','count')">Save count</button></div></div>`).join('')+`</details>`;
+}
+async function delSale(id){
+  const{data:x}=await SB.from('sales').select('*').eq('id',id).single(),{data:i}=await SB.from('items').select('stock').eq('id',x.item_id).single();
+  await SB.from('items').update({stock:i.stock+x.qty}).eq('id',x.item_id);run(SB.from('sales').delete().eq('id',id));
+}
+async function stock(id,kind){
+  const{data:i}=await SB.from('items').select('stock').eq('id',id).single();
+  if(kind==='add'){const q=+v('rs'+id);if(!(q>0)){msg='Enter a quantity.';return coachView()}
+    await SB.from('stock_log').insert({item_id:id,kind:'restock',qty:q});return run(SB.from('items').update({stock:i.stock+q}).eq('id',id))}
+  const c=v('ct'+id);if(c==='')return coachView();
+  await SB.from('stock_log').insert({item_id:id,kind:'count',counted:+c,expected:i.stock});
+  const r=await SB.from('items').update({stock:+c}).eq('id',id);
+  msg=r.error?r.error.message:+c<i.stock?'Counted '+c+', system had '+i.stock+': short '+(i.stock-c)+'.':'Count saved.';coachView();
+}
+function qrHtml(){return '<h2>QR codes</h2><div class="card"><b>Class check-in QR</b><div id="qr1" class="qr"></div></div><div class="card"><b>Drink shop QR</b><div id="qr2" class="qr"></div></div>'}
+function drawQR(){const b=location.href.split('?')[0].split('#')[0];[['qr1',b+'?c=1'],['qr2',b+'?shop=1']].forEach(([id,x])=>{try{new QRCode(document.getElementById(id),{text:x,width:150,height:150})}catch(e){}})}
 async function act(k,sid){
   const d=date||today();let r;
   if(k==='in')r=await SB.from('checkins').insert({student_id:sid,class_date:d,pts:cfg.pts,manual:true});
