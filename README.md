@@ -17,10 +17,12 @@ A mobile-friendly web app for a martial arts class (Monday and Wednesday, 8pm to
 - Buy drinks (water, soda) by scanning the drink shop QR code
 - Payment pending or paid bar, monthly plan status
 - Self-update of details (My details), including photo, emergency contact, health declaration and PIN
+- Single-page home screen: points, check-in, drinks, rewards and attendance history (v12)
 - English and Malay wording on forms
 
 **Coaches**
-- Attendance list by date, mark present or undo, record payments, view contact, emergency and health details
+- Bottom bar with five icon tabs (Today, Money, Drinks, People, Setup) and a student photo grid with one-tap payment (v11)
+- Attendance by date, mark present or undo, record payments, view contact, emergency and health details
 - Collection totals (daily, monthly, all time) split by class fees, monthly plans, drinks and by Cash, Bank-in, TNG
 - Outstanding balances (class fees and drinks)
 - Monthly plans (RM 120, points capped at 60 per month)
@@ -28,7 +30,7 @@ A mobile-friendly web app for a martial arts class (Monday and Wednesday, 8pm to
 - Reward requests and guest passes, bonus points (capped at 30 per month per student), automatic referral points
 - Coach team: invite code registration, several coaches can monitor
 - Class name, logo, printable A5 QR sheets with a customisable message
-- All coach sections collapse and expand
+- Sections inside each tab collapse and expand
 
 **Master admin (one person)**
 - Cannot be removed by other coaches. Can hand over the role to another coach
@@ -66,10 +68,12 @@ Used to design and test the flow before adding a database.
 | **v8** | Coach contact number beside the name, buttons on the next line. Printable A5 QR sheets with a customisable message |
 | **v9** | Registration form keeps what was typed and highlights missing fields |
 | **v10** | QR codes at the top, every coach section collapsible, test mode and test data combined at the bottom (master admin only), Delete student keeps payment history, rewards shown in two tones (green when affordable, grey when not), version label at the bottom |
+| **v11** | New coach page with a bottom bar of 5 icon tabs: **Today** (number tiles, reward requests, student photo grid), **Money** (collection, outstanding, monthly plans), **Drinks**, **People** (students, bonus points, coaches) and **Setup** (QR codes, rewards, settings, logo, test data). Tapping a student opens a panel with a large photo (tap again to enlarge) and one-tap **Cash**, **Bank-in** and **TNG** buttons. Green ring means present, tick means paid, RM means still to pay, red + means a health note. New photos are also saved as a larger copy so enlarged photos stay sharp |
+| **v12** | Redesigned student page in the same style: welcome row with photo, large points card (hold for the leaderboard) with the payment status beside it, a big **Check in** button that greys out once checked in, **Buy drinks** tiles on the main screen, collapsible Rewards and attendance history. Scanning the drink shop QR scrolls straight to Buy drinks |
 
 ## Database overview (Supabase)
 
-Tables: `settings`, `profiles`, `checkins`, `payments`, `plans`, `items`, `sales`, `stock_log`, `bonus`, `rewards`, `redeems`, `coach_invite`
+Tables: `settings`, `profiles`, `checkins`, `payments`, `plans`, `items`, `sales`, `stock_log`, `bonus`, `rewards`, `redeems`, `coach_invite`, `photos` (large student photos)
 
 Functions: `check_in`, `my_points`, `earned_pts`, `leaderboard`, `buy_item`, `redeem_reward`, `decide_redeem`, `reset_login`, `transfer_master`, `clear_collection`, `delete_student`, `check_invite`, plus triggers that create profiles, award referral points and protect the master admin and test mode.
 
@@ -99,7 +103,7 @@ Row-level security is on for every table. Students can read only their own recor
 - Test mode is still on and sample data exists. Clear test data and switch test mode off before launch
 - The login boxes still redraw after a wrong PIN (the phone number must be retyped)
 - Supabase's built-in email service has a low sending limit. Set up a custom email service before relying on password reset emails
-- Photos and logos are stored as small images inside the database
+- Photos and logos are stored as images inside the database. Photos uploaded before v11 are small and look soft when enlarged until the student uploads a new one
 - Referral points are given on registration, so fake sign-ups are possible. The coach can remove suspicious referral bonuses
 - Optional ideas: dummy test student excluded from totals, receipt photos, monthly sales report and export, announcements board, SMS or WhatsApp reminders
 - Database setup was applied through Supabase migrations. Consider exporting the schema into this repository as a `.sql` file for backup
